@@ -15,6 +15,7 @@ class EndlessRunner {
           this.hitTimestamps = [];
           this.hitFlash = 0;
           this.lastHitTime = 0; // Track when the last obstacle was hit
+          this.consecutiveDangers = 0; // Track consecutive dangerous obstacles spawned
           
           this.ground = this.canvas.height - 100;
           
@@ -45,6 +46,7 @@ class EndlessRunner {
           this.clouds = [];
           this.backgroundTrees = [];
           this.particles = []; // For visual effects
+          this.dangerousAreas = []; // Track dangerous obstacles that need platform assistance
           
           this.obstacleTimer = 0;
           this.birdTimer = 0;
@@ -132,6 +134,7 @@ class EndlessRunner {
           this.hitTimestamps = [];
           this.hitFlash = 0;
           this.lastHitTime = 0;
+          this.consecutiveDangers = 0; // Reset consecutive danger counter
           this.obstacles = [];
           this.birds = [];
           this.spikes = [];
@@ -144,6 +147,7 @@ class EndlessRunner {
           this.monster = null;
           this.particles = [];
           this.backgroundTrees = [];
+          this.dangerousAreas = []; // Reset dangerous areas tracking
           this.player.y = this.ground - 60;
           this.player.velocityY = 0;
           this.player.jumping = false;
@@ -240,7 +244,7 @@ class EndlessRunner {
                // Randomly choose obstacle type
                const obstacleType = Math.random();
                if (obstacleType < 0.3) { // Increased from 0.25 to 0.3
-                    // Ground obstacles (30%)
+                    // Ground obstacles (30%) - Not dangerous, resets counter
                     this.obstacles.push({
                          x: this.canvas.width,
                          y: this.ground - 45, // Increased height from 40 to 45
@@ -248,15 +252,18 @@ class EndlessRunner {
                          height: 45, // Increased height from 40 to 45
                          type: Math.random() > 0.5 ? 'cactus' : 'rock'
                     });
+                    this.consecutiveDangers = 0; // Reset counter
                } else if (obstacleType < 0.45) { // Increased from 0.4 to 0.45
-                    // Flying birds (15%)
+                    // Flying birds (15%) - Not dangerous, resets counter
                     this.spawnBird();
+                    this.consecutiveDangers = 0; // Reset counter
                } else if (obstacleType < 0.6) { // Increased from 0.52 to 0.6
                     // Spikes (15%)
                     this.spawnSpikes();
                } else if (obstacleType < 0.68) { // Reduced from 0.62 to 0.68
-                    // Moving platforms (8%)
+                    // Moving platforms (8%) - Helpful, resets counter
                     this.spawnMovingPlatform();
+                    this.consecutiveDangers = 0; // Reset counter
                } else if (obstacleType < 0.75) { // Reduced from 0.7 to 0.75
                     // Gaps (7%)
                     this.spawnGap();
@@ -267,12 +274,13 @@ class EndlessRunner {
                     // Fire traps (4%)
                     this.spawnFireTrap();
                } else {
-                    // Coins or power-ups (9%) - increased coin frequency
+                    // Coins or power-ups (9%) - Helpful, resets counter
                     if (Math.random() < 0.8) { // Increased from 0.6 to 0.8
                          this.spawnCoins();
                     } else {
                          this.spawnPowerUp();
                     }
+                    this.consecutiveDangers = 0; // Reset counter
                }
                this.obstacleTimer = Math.random() * 80 + 30; // Reduced from 120+60 to 80+30 for more frequent obstacles
           }
@@ -286,13 +294,15 @@ class EndlessRunner {
                y: this.ground - height,
                width: 35,
                height: 20,
-               velocityY: Math.sin(Date.now() * 0.01) * 2, // Flapping motion
+               initialY: this.ground - height, // Store initial Y position for wave motion
+               waveOffset: Math.random() * Math.PI * 2, // Random starting phase
                frame: Math.random() * 4
           });
      }
      
      spawnSpikes() {
           const spikeCount = Math.floor(Math.random() * 4) + 3; // Increased from 2-4 to 3-6 spikes
+          const totalWidth = spikeCount * 22;
           for (let i = 0; i < spikeCount; i++) {
                this.spikes.push({
                     x: this.canvas.width + i * 22, // Reduced spacing from 25 to 22
@@ -300,6 +310,11 @@ class EndlessRunner {
                     width: 22, // Increased width from 20 to 22
                     height: 30 // Increased height from 25 to 30
                });
+          }
+          
+          // Mark spike cluster as dangerous area needing platform assistance
+          if (spikeCount >= 4) { // Only for large spike clusters
+               this.markDangerousArea(this.canvas.width + totalWidth/2, totalWidth, 'spikes');
           }
      }
      
@@ -322,6 +337,9 @@ class EndlessRunner {
                y: this.ground,
                height: this.canvas.height - this.ground
           });
+          
+          // Mark this as a dangerous area that needs a platform
+          this.markDangerousArea(this.canvas.width + gapWidth/2, gapWidth, 'gap');
      }
      
      spawnCoins() {
@@ -380,6 +398,11 @@ class EndlessRunner {
                height: treeHeight,
                canSlideUnder: treeHeight > 50 // Can slide under taller trees
           });
+          
+          // Mark tall trees that can't be slid under as dangerous
+          if (!treeHeight > 50 || treeHeight >= 55) {
+               this.markDangerousArea(this.canvas.width + 40, 80, 'tree');
+          }
      }
      
      spawnFireTrap() {
@@ -392,6 +415,95 @@ class EndlessRunner {
                timer: Math.random() * 60 + 30, // Random activation delay
                frame: 0
           });
+          
+          // Fire traps are dangerous and may need platform assistance
+          this.markDangerousArea(this.canvas.width + 30, 60, 'fire');
+     }
+     
+     markDangerousArea(centerX, width, type) {
+          // Add dangerous area to tracking
+          this.dangerousAreas.push({
+               x: centerX,
+               width: width,
+               type: type,
+               needsPlatform: true,
+               timestamp: Date.now()
+          });
+          
+          // Increment consecutive danger counter
+          this.consecutiveDangers++;
+          
+          // Try to spawn a strategic platform near this danger
+          // Higher chance for gaps (80%), moderate for others (50%)
+          // If we've had 2+ consecutive dangers, force spawn a platform (100% chance)
+          let spawnChance = type === 'gap' ? 0.8 : 0.5;
+          
+          if (this.consecutiveDangers >= 2) {
+               spawnChance = 1.0; // Guarantee platform after 2 consecutive dangers
+          }
+          
+          if (Math.random() < spawnChance) {
+               this.spawnStrategicPlatform(centerX, width, type);
+               this.consecutiveDangers = 0; // Reset counter after spawning platform
+          }
+     }
+     
+     spawnStrategicPlatform(dangerX, dangerWidth, dangerType) {
+          // Calculate optimal platform position based on danger type
+          let platformX, platformY, platformWidth;
+          
+          switch(dangerType) {
+               case 'gap':
+                    // For gaps, place platform over the gap or slightly before it
+                    platformX = dangerX - dangerWidth/2 + (Math.random() * dangerWidth * 0.3);
+                    platformY = this.ground - 100 - Math.random() * 40; // Higher platforms for gaps
+                    platformWidth = Math.min(100, dangerWidth * 1.2); // Platform spans most of gap
+                    break;
+                    
+               case 'spikes':
+                    // For spike clusters, place platform above them
+                    platformX = dangerX + (Math.random() - 0.5) * 40;
+                    platformY = this.ground - 90 - Math.random() * 30;
+                    platformWidth = 80;
+                    break;
+                    
+               case 'tree':
+                    // For fallen trees, place platform to jump over
+                    platformX = dangerX - 20 + Math.random() * 40;
+                    platformY = this.ground - 110 - Math.random() * 20;
+                    platformWidth = 70;
+                    break;
+                    
+               case 'fire':
+                    // For fire traps, place platform nearby
+                    platformX = dangerX + (Math.random() - 0.5) * 30;
+                    platformY = this.ground - 95 - Math.random() * 25;
+                    platformWidth = 75;
+                    break;
+                    
+               default:
+                    platformX = dangerX;
+                    platformY = this.ground - 100;
+                    platformWidth = 80;
+          }
+          
+          // Check if there's already a platform too close
+          const tooClose = this.movingPlatforms.some(p => 
+               Math.abs(p.x - platformX) < 150
+          );
+          
+          if (!tooClose) {
+               this.movingPlatforms.push({
+                    x: platformX,
+                    y: platformY,
+                    width: platformWidth,
+                    height: 15,
+                    velocityY: (Math.random() - 0.5) * 3, // Slower movement for easier use
+                    bounceRange: 50,
+                    strategic: true, // Mark as strategically placed
+                    dangerType: dangerType
+               });
+          }
      }
      
      spawnMonster() {
@@ -399,7 +511,7 @@ class EndlessRunner {
           if (!this.monster) {
                // Spawn monster from the left side (behind the player)
                this.monster = {
-                    x: -200, // Spawn further left (increased gap from 0 to -200)
+                    x: -100, // Spawn further left (increased gap from 0 to -200)
                     y: this.ground - 80,
                     width: 100,
                     height: 380,
@@ -449,9 +561,9 @@ class EndlessRunner {
                bird.frame += 0.3;
                if (bird.frame >= 4) bird.frame = 0;
                
-               // Flapping motion
-               bird.velocityY = Math.sin(bird.frame * 3) * 1.5;
-               bird.y += bird.velocityY;
+               // Smooth flapping motion using time and wave offset
+               const time = Date.now() * 0.003; // Slower wave motion
+               bird.y = bird.initialY + Math.sin(time + bird.waveOffset) * 15; // Wave up and down
                
                return bird.x + bird.width > 0;
           });
@@ -479,6 +591,11 @@ class EndlessRunner {
           this.gaps = this.gaps.filter(gap => {
                gap.x -= this.gameSpeed;
                return gap.x + gap.width > 0;
+          });
+          
+          // Clean up old dangerous areas that have scrolled off screen
+          this.dangerousAreas = this.dangerousAreas.filter(area => {
+               return area.x + area.width > -100;
           });
           
           // Update coins
@@ -594,10 +711,6 @@ class EndlessRunner {
      updateMonster() {
           if (!this.monster) return;
           
-          // First, move monster with the game speed (same as obstacles)
-          // This keeps the monster moving at the same pace as the world
-          this.monster.x -= this.gameSpeed;
-          
           // Calculate distance to player
           let distanceToPlayer = Math.abs(this.monster.x - this.player.x);
           
@@ -608,30 +721,39 @@ class EndlessRunner {
           let chaseDistance = Math.max(40, baseDistance - (hitCount * distanceReduction)); // Minimum distance increased from 20 to 40
           let isDeadly = hitCount >= 3;
           
-          // Additional movement toward player (on top of the base game speed movement)
-          if (this.monster.x > this.player.x + chaseDistance) {
-               // Monster is to the right of player, move left toward player (additional movement)
+          // Calculate ideal position (behind the player)
+          let idealX = this.player.x - chaseDistance;
+          let distanceToIdeal = this.monster.x - idealX;
+          
+          // Add a dead zone to prevent shaking (only move if significantly off position)
+          let deadZone = 10; // pixels of tolerance
+          
+          // Move toward player to maintain chase distance
+          if (distanceToIdeal > deadZone) {
+               // Monster is too far to the right, move left
                this.monster.x -= this.monster.speed;
-          } else if (this.monster.x < this.player.x - chaseDistance) {
-               // Monster is to the left of player, move right toward player (additional movement)
+          } else if (distanceToIdeal < -deadZone) {
+               // Monster is too far to the left, move right toward player
                this.monster.x += this.monster.speed;
           }
+          // If within dead zone, don't move horizontally (prevents shaking)
           
-          // If monster goes too far off-screen to the left, respawn it from the left again
-          if (this.monster.x < -300) {
-               this.monster.x = -200; // Respawn further back
+          // Keep monster on screen - constrain position
+          if (this.monster.x < 50) {
+               this.monster.x = 50;
           }
-          // If monster goes too far off-screen to the right, respawn it from the left
-          if (this.monster.x > this.canvas.width + 200) {
-               this.monster.x = -200; // Respawn further back
+          if (this.monster.x > this.canvas.width - this.monster.width - 50) {
+               this.monster.x = this.canvas.width - this.monster.width - 50;
           }
           
           // Vertical following - gets closer with more hits
           let verticalDistance = Math.abs(this.monster.y - this.player.y);
           let verticalChaseDistance = Math.max(20, 50 - (hitCount * 10)); // Increased from 35 to 50 pixels, minimum increased from 10 to 20
-          if (this.monster.y > this.player.y + verticalChaseDistance && this.monster.y > this.ground - 80) {
+          let verticalDeadZone = 5; // Add dead zone for vertical movement too
+          
+          if (this.monster.y > this.player.y + verticalChaseDistance + verticalDeadZone && this.monster.y > this.ground - 80) {
                this.monster.y -= 2;
-          } else if (this.monster.y < this.player.y - verticalChaseDistance && this.monster.y < this.ground - 80) {
+          } else if (this.monster.y < this.player.y - verticalChaseDistance - verticalDeadZone && this.monster.y < this.ground - 80) {
                this.monster.y += 2;
           }
           
@@ -1442,9 +1564,29 @@ class EndlessRunner {
                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                this.ctx.fillRect(platform.x + 2, platform.y + 2, platform.width, platform.height);
                
+               // Highlight strategic platforms with a glow effect
+               if (platform.strategic) {
+                    const pulseAlpha = 0.3 + Math.sin(Date.now() * 0.005) * 0.15;
+                    this.ctx.shadowColor = '#4169E1';
+                    this.ctx.shadowBlur = 15;
+                    
+                    // Helper indicator line showing the danger below
+                    this.ctx.strokeStyle = `rgba(65, 105, 225, ${pulseAlpha})`;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.setLineDash([5, 5]);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(platform.x + platform.width/2, platform.y + platform.height);
+                    this.ctx.lineTo(platform.x + platform.width/2, this.ground);
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+               }
+               
                // Log platform
-               this.ctx.fillStyle = '#8B4513';
+               this.ctx.fillStyle = platform.strategic ? '#A0522D' : '#8B4513'; // Lighter brown for strategic
                this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+               
+               // Reset shadow
+               this.ctx.shadowBlur = 0;
                
                // Log rings
                this.ctx.strokeStyle = '#654321';
@@ -1455,45 +1597,60 @@ class EndlessRunner {
                     this.ctx.stroke();
                }
                
-               // Moss on log
-               this.ctx.fillStyle = '#32CD32';
+               // Moss on log - with special color for strategic platforms
+               this.ctx.fillStyle = platform.strategic ? '#00FF00' : '#32CD32'; // Brighter green for strategic
                this.ctx.fillRect(platform.x, platform.y, platform.width, 3);
+               
+               // Add help icon for strategic platforms
+               if (platform.strategic) {
+                    this.ctx.fillStyle = '#FFFFFF';
+                    this.ctx.font = 'bold 12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('!', platform.x + platform.width/2, platform.y - 5);
+               }
           });
           
-          // Draw coins (acorns)
+          // Draw coins
           this.coins.forEach(coin => {
                const rotation = coin.frame * 0.3;
                const cx = coin.x + coin.width/2;
                const cy = coin.y + coin.height/2;
-               
+
                this.ctx.save();
                this.ctx.translate(cx, cy);
                this.ctx.rotate(rotation);
-               
-               // Acorn shadow
+
+               // Coin shadow
                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                this.ctx.beginPath();
-               this.ctx.ellipse(1, 1, 8, 6, 0, 0, Math.PI * 2);
+               this.ctx.arc(1, 1, 8, 0, Math.PI * 2);
                this.ctx.fill();
-               
-               // Acorn cap
-               this.ctx.fillStyle = '#8B4513';
+
+               // Coin body (gold)
+               this.ctx.fillStyle = '#FFD700';
                this.ctx.beginPath();
-               this.ctx.arc(0, -2, 6, 0, Math.PI * 2);
+               this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
                this.ctx.fill();
-               
-               // Acorn body
-               this.ctx.fillStyle = '#D2691E';
+
+               // Coin edge (darker gold)
+               this.ctx.strokeStyle = '#B8860B';
+               this.ctx.lineWidth = 1;
                this.ctx.beginPath();
-               this.ctx.arc(0, 2, 5, 0, Math.PI * 2);
-               this.ctx.fill();
-               
-               // Acorn shine
-               this.ctx.fillStyle = '#F4A460';
+               this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
+               this.ctx.stroke();
+
+               // Coin shine/highlight
+               this.ctx.fillStyle = '#FFF8DC';
                this.ctx.beginPath();
-               this.ctx.arc(-1, 1, 2, 0, Math.PI * 2);
+               this.ctx.arc(-2, -2, 3, 0, Math.PI * 2);
                this.ctx.fill();
-               
+
+               // Coin inner details (like a dollar sign or just a simple pattern)
+               this.ctx.fillStyle = '#B8860B';
+               this.ctx.font = 'bold 10px Arial';
+               this.ctx.textAlign = 'center';
+               this.ctx.fillText('$', 0, 3);
+
                this.ctx.restore();
           });
           
