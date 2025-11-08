@@ -5,9 +5,18 @@ class EndlessRunner {
           this.canvas.width = window.innerWidth;
           this.canvas.height = window.innerHeight;
           
+          // Audio setup
+          this.audioContext = null;
+          this.backgroundMusicOscillators = [];
+          this.backgroundMusicInterval = null;
+          this.audioEnabled = localStorage.getItem('audioEnabled') !== 'false'; // Default to true
+          this.musicEnabled = localStorage.getItem('musicEnabled') !== 'false'; // Default to true
+          this.initAudio();
+          
           this.gameState = 'start'; // start, playing, gameOver
           this.score = 0;
           this.highScore = localStorage.getItem('highScore') || 0;
+          this.level = 1; // Add level system
           this.gameSpeed = 6; // Increased from 4 to 6
           this.baseGameSpeed = 6; // Increased from 4 to 6
           this.gravity = 0.5; // Increased from 0.8 to 1.0
@@ -45,7 +54,9 @@ class EndlessRunner {
           this.monster = null; // Single monster
           this.clouds = [];
           this.backgroundTrees = [];
+          this.backgroundWalls = []; // Temple walls for level 2
           this.particles = []; // For visual effects
+          this.snowParticles = []; // Snow particles for level 2
           this.dangerousAreas = []; // Track dangerous obstacles that need platform assistance
           
           this.obstacleTimer = 0;
@@ -79,8 +90,256 @@ class EndlessRunner {
           this.setupEventListeners();
           this.generateClouds();
           this.generateBackgroundTrees();
+          this.generateBackgroundWalls();
+          this.generateSnowParticles(); // Generate snow particles for level 2
           this.updateHighScore();
+          this.updateAudioButtons(); // Initialize audio button states
           this.gameLoop();
+     }
+     
+     initAudio() {
+          try {
+               this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          } catch (e) {
+               console.warn('Web Audio API not supported');
+          }
+     }
+     
+     playSound(frequency, duration, type = 'sine', volume = 0.3) {
+          if (!this.audioContext || !this.audioEnabled) return;
+          
+          const oscillator = this.audioContext.createOscillator();
+          const gainNode = this.audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(this.audioContext.destination);
+          
+          oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+          oscillator.type = type;
+          
+          gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+          
+          oscillator.start(this.audioContext.currentTime);
+          oscillator.stop(this.audioContext.currentTime + duration);
+     }
+     
+     playJumpSound() {
+          // High-pitched jump sound
+          this.playSound(400, 0.15, 'sine', 0.2);
+          // Add a quick lower tone for depth
+          setTimeout(() => this.playSound(200, 0.1, 'triangle', 0.15), 50);
+     }
+     
+     playSlideSound() {
+          // Low sliding sound
+          this.playSound(150, 0.3, 'sawtooth', 0.25);
+     }
+     
+     playCoinSound() {
+          // Pleasant coin collection sound
+          this.playSound(800, 0.1, 'sine', 0.3);
+          setTimeout(() => this.playSound(1000, 0.08, 'sine', 0.2), 50);
+     }
+     
+     playPowerUpSound() {
+          // Magical power-up sound
+          this.playSound(600, 0.15, 'triangle', 0.3);
+          setTimeout(() => this.playSound(800, 0.12, 'triangle', 0.25), 75);
+          setTimeout(() => this.playSound(1000, 0.1, 'triangle', 0.2), 150);
+     }
+     
+     playHitSound() {
+          // Harsh hit sound
+          this.playSound(200, 0.2, 'sawtooth', 0.4);
+          setTimeout(() => this.playSound(150, 0.15, 'sawtooth', 0.3), 100);
+     }
+     
+     playGameOverSound() {
+          // Descending game over sound
+          this.playSound(400, 0.3, 'sawtooth', 0.4);
+          setTimeout(() => this.playSound(300, 0.3, 'sawtooth', 0.35), 150);
+          setTimeout(() => this.playSound(200, 0.5, 'sawtooth', 0.3), 300);
+     }
+     
+     playLevelUpSound() {
+          // Triumphant level up sound
+          this.playSound(500, 0.2, 'triangle', 0.4);
+          setTimeout(() => this.playSound(600, 0.15, 'triangle', 0.35), 100);
+          setTimeout(() => this.playSound(700, 0.15, 'triangle', 0.3), 200);
+          setTimeout(() => this.playSound(800, 0.2, 'triangle', 0.25), 300);
+     }
+     
+     // Background music management
+     startBackgroundMusic() {
+          if (!this.audioContext || !this.musicEnabled) return;
+          
+          // Stop any existing background music
+          this.stopBackgroundMusic();
+          
+          // Create new background music based on current level
+          if (this.level === 1) {
+               this.playLevel1Music();
+          } else if (this.level === 2) {
+               this.playLevel2Music();
+          }
+     }
+     
+     stopBackgroundMusic() {
+          if (this.backgroundMusicOscillators) {
+               this.backgroundMusicOscillators.forEach(osc => {
+                    try {
+                         osc.stop();
+                    } catch (e) {
+                         // Oscillator might already be stopped
+                    }
+               });
+          }
+          this.backgroundMusicOscillators = [];
+          if (this.backgroundMusicInterval) {
+               clearInterval(this.backgroundMusicInterval);
+               this.backgroundMusicInterval = null;
+          }
+     }
+
+     toggleAudio() {
+          this.audioEnabled = !this.audioEnabled;
+          localStorage.setItem('audioEnabled', this.audioEnabled);
+          this.updateAudioButtons();
+     }
+
+     toggleMusic() {
+          this.musicEnabled = !this.musicEnabled;
+          localStorage.setItem('musicEnabled', this.musicEnabled);
+          this.updateAudioButtons();
+
+          // Start or stop background music based on new setting
+          if (this.musicEnabled && this.gameState === 'playing') {
+               this.startBackgroundMusic();
+          } else {
+               this.stopBackgroundMusic();
+          }
+     }
+
+     updateAudioButtons() {
+          const audioBtn = document.getElementById('audioToggle');
+          const musicBtn = document.getElementById('musicToggle');
+
+          if (this.audioEnabled) {
+               audioBtn.textContent = '🔊 Sound';
+               audioBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm';
+          } else {
+               audioBtn.textContent = '🔇 Sound';
+               audioBtn.className = 'bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm';
+          }
+
+          if (this.musicEnabled) {
+               musicBtn.textContent = '🎵 Music';
+               musicBtn.className = 'bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm';
+          } else {
+               musicBtn.textContent = '🎵 Music';
+               musicBtn.className = 'bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm';
+          }
+     }
+     
+     playLevel1Music() {
+          // Forest adventure theme - melodic and adventurous
+          this.backgroundMusicOscillators = [];
+          let noteIndex = 0;
+          const melody = [
+               { freq: 523, duration: 300, type: 'sine' }, // C5 - Forest call
+               { freq: 659, duration: 250, type: 'sine' }, // E5 - Adventure
+               { freq: 784, duration: 400, type: 'sine' }, // G5 - Journey
+               { freq: 659, duration: 200, type: 'sine' }, // E5 - Return
+               { freq: 698, duration: 300, type: 'sine' }, // F5 - Discovery
+               { freq: 784, duration: 350, type: 'sine' }, // G5 - Exploration
+               { freq: 880, duration: 500, type: 'sine' }, // A5 - Triumph
+               { freq: 784, duration: 250, type: 'sine' }, // G5 - Rest
+               { freq: 698, duration: 300, type: 'sine' }, // F5 - Reflection
+               { freq: 659, duration: 350, type: 'sine' }, // E5 - Wisdom
+               { freq: 587, duration: 400, type: 'sine' }, // D5 - Growth
+               { freq: 523, duration: 600, type: 'sine' }, // C5 - Home
+          ];
+
+          const playNextNote = () => {
+               if (this.gameState !== 'playing') return;
+
+               const note = melody[noteIndex % melody.length];
+               const oscillator = this.audioContext.createOscillator();
+               const gainNode = this.audioContext.createGain();
+
+               oscillator.connect(gainNode);
+               gainNode.connect(this.audioContext.destination);
+
+               oscillator.frequency.setValueAtTime(note.freq, this.audioContext.currentTime);
+               oscillator.type = note.type;
+
+               gainNode.gain.setValueAtTime(0.08, this.audioContext.currentTime);
+               gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + note.duration / 1000);
+
+               oscillator.start(this.audioContext.currentTime);
+               oscillator.stop(this.audioContext.currentTime + note.duration / 1000);
+
+               this.backgroundMusicOscillators.push(oscillator);
+
+               noteIndex++;
+          };
+
+          // Play first note immediately
+          playNextNote();
+
+          // Set up interval for continuous melody
+          this.backgroundMusicInterval = setInterval(playNextNote, 250); // Steady, adventurous rhythm
+     }
+     
+     playLevel2Music() {
+          // Mountain summit theme - triumphant and challenging
+          this.backgroundMusicOscillators = [];
+          let noteIndex = 0;
+          const melody = [
+               { freq: 659, duration: 250, type: 'triangle' }, // E5 - Ascent
+               { freq: 784, duration: 300, type: 'triangle' }, // G5 - Challenge
+               { freq: 880, duration: 350, type: 'triangle' }, // A5 - Triumph
+               { freq: 988, duration: 200, type: 'triangle' }, // B5 - Peak
+               { freq: 880, duration: 250, type: 'triangle' }, // A5 - Descent
+               { freq: 784, duration: 300, type: 'triangle' }, // G5 - Recovery
+               { freq: 698, duration: 200, type: 'triangle' }, // F5 - Rest
+               { freq: 784, duration: 350, type: 'triangle' }, // G5 - New ascent
+               { freq: 880, duration: 400, type: 'triangle' }, // A5 - Higher peak
+               { freq: 1047, duration: 300, type: 'triangle' }, // C6 - Summit
+               { freq: 988, duration: 250, type: 'triangle' }, // B5 - Achievement
+               { freq: 880, duration: 500, type: 'triangle' }, // A5 - Victory
+          ];
+
+          const playNextNote = () => {
+               if (this.gameState !== 'playing') return;
+
+               const note = melody[noteIndex % melody.length];
+               const oscillator = this.audioContext.createOscillator();
+               const gainNode = this.audioContext.createGain();
+
+               oscillator.connect(gainNode);
+               gainNode.connect(this.audioContext.destination);
+
+               oscillator.frequency.setValueAtTime(note.freq, this.audioContext.currentTime);
+               oscillator.type = note.type;
+
+               gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+               gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + note.duration / 1000);
+
+               oscillator.start(this.audioContext.currentTime);
+               oscillator.stop(this.audioContext.currentTime + note.duration / 1000);
+
+               this.backgroundMusicOscillators.push(oscillator);
+
+               noteIndex++;
+          };
+
+          // Play first note immediately
+          playNextNote();
+
+          // Set up interval for continuous melody
+          this.backgroundMusicInterval = setInterval(playNextNote, 200); // Steady, triumphant rhythm
      }
      
      setupEventListeners() {
@@ -110,6 +369,15 @@ class EndlessRunner {
           document.getElementById('restartBtn').addEventListener('click', () => {
                this.restartGame();
           });
+
+          // Audio toggle buttons
+          document.getElementById('audioToggle').addEventListener('click', () => {
+               this.toggleAudio();
+          });
+
+          document.getElementById('musicToggle').addEventListener('click', () => {
+               this.toggleMusic();
+          });
           
           // Handle canvas clicks for jump
           this.canvas.addEventListener('click', () => {
@@ -123,11 +391,13 @@ class EndlessRunner {
           this.gameState = 'playing';
           document.getElementById('startScreen').classList.add('hidden');
           this.spawnMonster(); // Spawn the single monster
+          this.startBackgroundMusic(); // Start background music
      }
      
      restartGame() {
           this.gameState = 'playing';
           this.score = 0;
+          this.level = 1; // Reset level to 1 when restarting
           this.gameSpeed = 4;
           this.baseGameSpeed = 4;
           this.slowdownTimer = 0;
@@ -147,6 +417,8 @@ class EndlessRunner {
           this.monster = null;
           this.particles = [];
           this.backgroundTrees = [];
+          this.backgroundWalls = []; // Reset temple walls
+          this.snowParticles = []; // Reset snow particles
           this.dangerousAreas = []; // Reset dangerous areas tracking
           this.player.y = this.ground - 60;
           this.player.velocityY = 0;
@@ -173,7 +445,10 @@ class EndlessRunner {
           document.getElementById('gameOverScreen').classList.add('hidden');
           this.generateClouds();
           this.generateBackgroundTrees();
+          this.generateBackgroundWalls();
+          this.generateSnowParticles(); // Generate snow particles for level 2
           this.spawnMonster(); // Spawn the single monster
+          this.startBackgroundMusic(); // Restart background music
      }
      
      jump() {
@@ -183,11 +458,13 @@ class EndlessRunner {
                     this.player.velocityY = -12; // Reduced from -18 to -12
                     this.player.jumping = true;
                     this.player.doubleJumpUsed = false;
+                    this.playJumpSound();
                }
                // Double jump (enhanced with power-up)
                else if (!this.player.doubleJumpUsed || (this.doubleJumpBoost && this.player.doubleJumpUsed)) { // Allow multiple double jumps with boost
                     this.player.velocityY = -9; // Reduced from -15 to -9
                     this.player.doubleJumpUsed = true;
+                    this.playJumpSound();
                }
           }
      }
@@ -198,6 +475,7 @@ class EndlessRunner {
                this.player.slideTimer = 20; // Reduced from 30 to 20 frames (shorter slide)
                this.player.height = 30; // Reduce height while sliding
                this.player.y = this.ground - 30; // Adjust position
+               this.playSlideSound();
           }
      }
      
@@ -241,48 +519,107 @@ class EndlessRunner {
      
      spawnObstacle() {
           if (this.obstacleTimer <= 0) {
-               // Randomly choose obstacle type
+               // Randomly choose obstacle type based on level
                const obstacleType = Math.random();
-               if (obstacleType < 0.3) { // Increased from 0.25 to 0.3
-                    // Ground obstacles (30%) - Not dangerous, resets counter
-                    this.obstacles.push({
-                         x: this.canvas.width,
-                         y: this.ground - 45, // Increased height from 40 to 45
-                         width: 35, // Increased width from 30 to 35
-                         height: 45, // Increased height from 40 to 45
-                         type: Math.random() > 0.5 ? 'cactus' : 'rock'
-                    });
-                    this.consecutiveDangers = 0; // Reset counter
-               } else if (obstacleType < 0.45) { // Increased from 0.4 to 0.45
-                    // Flying birds (15%) - Not dangerous, resets counter
-                    this.spawnBird();
-                    this.consecutiveDangers = 0; // Reset counter
-               } else if (obstacleType < 0.6) { // Increased from 0.52 to 0.6
-                    // Spikes (15%)
-                    this.spawnSpikes();
-               } else if (obstacleType < 0.68) { // Reduced from 0.62 to 0.68
-                    // Moving platforms (8%) - Helpful, resets counter
-                    this.spawnMovingPlatform();
-                    this.consecutiveDangers = 0; // Reset counter
-               } else if (obstacleType < 0.75) { // Reduced from 0.7 to 0.75
-                    // Gaps (7%)
-                    this.spawnGap();
-               } else if (obstacleType < 0.82) { // Reduced from 0.78 to 0.82
-                    // Fallen trees (5%)
-                    this.spawnFallenTree();
-               } else if (obstacleType < 0.87) { // Reduced from 0.85 to 0.87
-                    // Fire traps (4%)
-                    this.spawnFireTrap();
-               } else {
-                    // Coins or power-ups (9%) - Helpful, resets counter
-                    if (Math.random() < 0.8) { // Increased from 0.6 to 0.8
-                         this.spawnCoins();
+               
+               if (this.level === 1) {
+                    // Forest theme obstacles
+                    if (obstacleType < 0.3) { // Increased from 0.25 to 0.3
+                         // Ground obstacles (30%) - Not dangerous, resets counter
+                         this.obstacles.push({
+                              x: this.canvas.width,
+                              y: this.ground - 45, // Increased height from 40 to 45
+                              width: 35, // Increased width from 30 to 35
+                              height: 45, // Increased height from 40 to 45
+                              type: Math.random() > 0.5 ? 'cactus' : 'rock'
+                         });
+                         this.consecutiveDangers = 0; // Reset counter
+                    } else if (obstacleType < 0.45) { // Increased from 0.4 to 0.45
+                         // Flying birds (15%) - Not dangerous, resets counter
+                         this.spawnBird();
+                         this.consecutiveDangers = 0; // Reset counter
+                    } else if (obstacleType < 0.6) { // Increased from 0.52 to 0.6
+                         // Spikes (15%)
+                         this.spawnSpikes();
+                    } else if (obstacleType < 0.68) { // Reduced from 0.62 to 0.68
+                         // Moving platforms (8%) - Helpful, resets counter
+                         this.spawnMovingPlatform();
+                         this.consecutiveDangers = 0; // Reset counter
+                    } else if (obstacleType < 0.75) { // Reduced from 0.7 to 0.75
+                         // Gaps (7%)
+                         this.spawnGap();
+                    } else if (obstacleType < 0.82) { // Reduced from 0.78 to 0.82
+                         // Fallen trees (5%)
+                         this.spawnFallenTree();
+                    } else if (obstacleType < 0.87) { // Reduced from 0.85 to 0.87
+                         // Fire traps (4%)
+                         this.spawnFireTrap();
                     } else {
-                         this.spawnPowerUp();
+                         // Coins or power-ups (9%) - Helpful, resets counter
+                         let powerUpChance = this.level === 2 ? 0.6 : 0.8; // Reduced power-up chance in level 2
+                         if (Math.random() < powerUpChance) {
+                              this.spawnCoins();
+                         } else {
+                              this.spawnPowerUp();
+                         }
+                         this.consecutiveDangers = 0; // Reset counter
                     }
-                    this.consecutiveDangers = 0; // Reset counter
+               } else if (this.level === 2) {
+                    // Snowy theme obstacles - different snow-themed obstacles
+                    if (obstacleType < 0.25) {
+                         // Snowmen (25%) - soft obstacle, resets counter
+                         this.obstacles.push({
+                              x: this.canvas.width,
+                              y: this.ground - 50,
+                              width: 35,
+                              height: 50,
+                              type: 'snowman'
+                         });
+                         this.consecutiveDangers = 0; // Reset counter
+                    } else if (obstacleType < 0.4) {
+                         // Ice crystals (15%) - slippery obstacle, resets counter
+                         this.obstacles.push({
+                              x: this.canvas.width,
+                              y: this.ground - 45,
+                              width: 30,
+                              height: 45,
+                              type: 'ice_crystal'
+                         });
+                         this.consecutiveDangers = 0; // Reset counter
+                    } else if (obstacleType < 0.55) {
+                         // Icicles (15%) - dangerous spikes
+                         this.spawnIcicles();
+                    } else if (obstacleType < 0.65) {
+                         // Floating ice platforms (10%) - helpful, resets counter
+                         this.spawnFloatingIcePlatform();
+                         this.consecutiveDangers = 0; // Reset counter
+                    } else if (obstacleType < 0.75) {
+                         // Crevasses (10%) - dangerous gaps
+                         this.spawnCrevasse();
+                    } else if (obstacleType < 0.82) {
+                         // Pine trees (7%) - dangerous
+                         this.spawnPineTree();
+                    } else if (obstacleType < 0.87) {
+                         // Ice avalanches (5%) - dangerous
+                         this.spawnIceAvalanche();
+                    } else {
+                         // Coins or power-ups (9%) - helpful, resets counter
+                         let powerUpChance = this.level === 2 ? 0.6 : 0.8; // Reduced power-up chance in level 2
+                         if (Math.random() < powerUpChance) {
+                              this.spawnCoins();
+                         } else {
+                              this.spawnPowerUp();
+                         }
+                         this.consecutiveDangers = 0; // Reset counter
+                    }
                }
+               
                this.obstacleTimer = Math.random() * 80 + 30; // Reduced from 120+60 to 80+30 for more frequent obstacles
+               
+               // Level 2 has even more frequent obstacles
+               if (this.level === 2) {
+                    this.obstacleTimer *= 0.7; // 30% faster obstacle spawning in level 2
+               }
           }
           this.obstacleTimer--;
      }
@@ -420,6 +757,248 @@ class EndlessRunner {
           this.markDangerousArea(this.canvas.width + 30, 60, 'fire');
      }
      
+     spawnTempleSpikes() {
+          const spikeCount = Math.floor(Math.random() * 4) + 3; // 3-6 spikes
+          const totalWidth = spikeCount * 25;
+          for (let i = 0; i < spikeCount; i++) {
+               this.spikes.push({
+                    x: this.canvas.width + i * 25,
+                    y: this.ground - 35,
+                    width: 25,
+                    height: 35,
+                    type: 'temple' // Mark as temple spikes
+               });
+          }
+          
+          // Mark spike cluster as dangerous area needing platform assistance
+          if (spikeCount >= 4) {
+               this.markDangerousArea(this.canvas.width + totalWidth/2, totalWidth, 'temple_spikes');
+          }
+     }
+     
+     spawnStonePlatform() {
+          this.movingPlatforms.push({
+               x: this.canvas.width,
+               y: this.ground - 85 - Math.random() * 55,
+               width: 85,
+               height: 18,
+               velocityY: (Math.random() - 0.5) * 4.5,
+               bounceRange: 65,
+               type: 'stone' // Mark as stone platform
+          });
+     }
+     
+     spawnTempleGap() {
+          const gapWidth = 85 + Math.random() * 65; // Variable gap width
+          this.gaps.push({
+               x: this.canvas.width,
+               width: gapWidth,
+               y: this.ground,
+               height: this.canvas.height - this.ground,
+               type: 'temple' // Mark as temple gap
+          });
+          
+          // Mark this as a dangerous area that needs a platform
+          this.markDangerousArea(this.canvas.width + gapWidth/2, gapWidth, 'temple_gap');
+     }
+     
+     spawnTempleTrap() {
+          this.fireTraps.push({
+               x: this.canvas.width,
+               y: this.ground - 35,
+               width: 70,
+               height: 35,
+               active: false,
+               timer: Math.random() * 50 + 25,
+               frame: 0,
+               type: 'temple' // Mark as temple trap
+          });
+          
+          // Temple traps are dangerous and may need platform assistance
+          this.markDangerousArea(this.canvas.width + 35, 70, 'temple_trap');
+     }
+     
+     spawnBoulderTrap() {
+          // Spawn a rolling boulder that falls from above
+          this.fireTraps.push({
+               x: this.canvas.width,
+               y: this.ground - 80,
+               width: 45,
+               height: 45,
+               active: true,
+               timer: 0,
+               frame: 0,
+               type: 'boulder',
+               velocityY: 0,
+               falling: false
+          });
+          
+          // Boulders are dangerous
+          this.markDangerousArea(this.canvas.width + 22, 45, 'boulder');
+     }
+     
+     spawnFrozenSpikes() {
+          const spikeCount = Math.floor(Math.random() * 4) + 3; // 3-6 spikes
+          const totalWidth = spikeCount * 25;
+          for (let i = 0; i < spikeCount; i++) {
+               this.spikes.push({
+                    x: this.canvas.width + i * 25,
+                    y: this.ground - 35,
+                    width: 25,
+                    height: 35,
+                    type: 'frozen' // Mark as frozen spikes
+               });
+          }
+          
+          // Mark spike cluster as dangerous area needing platform assistance
+          if (spikeCount >= 4) {
+               this.markDangerousArea(this.canvas.width + totalWidth/2, totalWidth, 'frozen_spikes');
+          }
+     }
+     
+     spawnIcePlatform() {
+          this.movingPlatforms.push({
+               x: this.canvas.width,
+               y: this.ground - 85 - Math.random() * 55,
+               width: 85,
+               height: 18,
+               velocityY: (Math.random() - 0.5) * 4.5,
+               bounceRange: 65,
+               type: 'ice' // Mark as ice platform
+          });
+     }
+     
+     spawnSnowGap() {
+          const gapWidth = 85 + Math.random() * 65; // Variable gap width
+          this.gaps.push({
+               x: this.canvas.width,
+               width: gapWidth,
+               y: this.ground,
+               height: this.canvas.height - this.ground,
+               type: 'snow' // Mark as snow gap
+          });
+          
+          // Mark this as a dangerous area that needs a platform
+          this.markDangerousArea(this.canvas.width + gapWidth/2, gapWidth, 'snow_gap');
+     }
+     
+     spawnFrozenTree() {
+          const treeHeight = 40 + Math.random() * 20;
+          this.fallenTrees.push({
+               x: this.canvas.width,
+               y: this.ground - treeHeight,
+               width: 80,
+               height: treeHeight,
+               canSlideUnder: treeHeight > 50, // Can slide under taller trees
+               type: 'frozen' // Mark as frozen tree
+          });
+          
+          // Mark tall trees that can't be slid under as dangerous
+          if (!treeHeight > 50 || treeHeight >= 55) {
+               this.markDangerousArea(this.canvas.width + 40, 80, 'frozen_tree');
+          }
+     }
+     
+     spawnSnowAvalanche() {
+          // Spawn falling snow chunks that can hurt the player
+          this.fireTraps.push({
+               x: this.canvas.width,
+               y: this.ground - 100,
+               width: 50,
+               height: 50,
+               active: true,
+               timer: 0,
+               frame: 0,
+               type: 'avalanche',
+               velocityY: 0,
+               falling: false
+          });
+          
+          // Avalanches are dangerous
+          this.markDangerousArea(this.canvas.width + 25, 50, 'avalanche');
+     }
+     
+     spawnIcicles() {
+          const icicleCount = Math.floor(Math.random() * 4) + 3; // 3-6 icicles
+          const totalWidth = icicleCount * 20;
+          for (let i = 0; i < icicleCount; i++) {
+               this.spikes.push({
+                    x: this.canvas.width + i * 20,
+                    y: this.ground - 40,
+                    width: 20,
+                    height: 40,
+                    type: 'icicle' // Mark as icicle
+               });
+          }
+          
+          // Mark icicle cluster as dangerous area needing platform assistance
+          if (icicleCount >= 4) {
+               this.markDangerousArea(this.canvas.width + totalWidth/2, totalWidth, 'icicles');
+          }
+     }
+     
+     spawnFloatingIcePlatform() {
+          this.movingPlatforms.push({
+               x: this.canvas.width,
+               y: this.ground - 90 - Math.random() * 60,
+               width: 90,
+               height: 20,
+               velocityY: (Math.random() - 0.5) * 5,
+               bounceRange: 70,
+               type: 'floating_ice' // Mark as floating ice platform
+          });
+     }
+     
+     spawnCrevasse() {
+          const crevasseWidth = 90 + Math.random() * 70; // Variable crevasse width
+          this.gaps.push({
+               x: this.canvas.width,
+               width: crevasseWidth,
+               y: this.ground,
+               height: this.canvas.height - this.ground,
+               type: 'crevasse' // Mark as crevasse
+          });
+          
+          // Mark this as a dangerous area that needs a platform
+          this.markDangerousArea(this.canvas.width + crevasseWidth/2, crevasseWidth, 'crevasse');
+     }
+     
+     spawnPineTree() {
+          const treeHeight = 45 + Math.random() * 25;
+          this.fallenTrees.push({
+               x: this.canvas.width,
+               y: this.ground - treeHeight,
+               width: 85,
+               height: treeHeight,
+               canSlideUnder: treeHeight > 55, // Can slide under taller trees
+               type: 'pine' // Mark as pine tree
+          });
+          
+          // Mark tall trees that can't be slid under as dangerous
+          if (!treeHeight > 55 || treeHeight >= 60) {
+               this.markDangerousArea(this.canvas.width + 42, 85, 'pine_tree');
+          }
+     }
+     
+     spawnIceAvalanche() {
+          // Spawn falling ice chunks that can hurt the player
+          this.fireTraps.push({
+               x: this.canvas.width,
+               y: this.ground - 110,
+               width: 55,
+               height: 55,
+               active: true,
+               timer: 0,
+               frame: 0,
+               type: 'ice_avalanche',
+               velocityY: 0,
+               falling: false
+          });
+          
+          // Ice avalanches are dangerous
+          this.markDangerousArea(this.canvas.width + 27, 55, 'ice_avalanche');
+     }
+     
      markDangerousArea(centerX, width, type) {
           // Add dangerous area to tracking
           this.dangerousAreas.push({
@@ -548,6 +1127,57 @@ class EndlessRunner {
           }
      }
      
+     generateBackgroundWalls() {
+          for (let i = 0; i < 6; i++) {
+               this.backgroundWalls.push({
+                    x: Math.random() * this.canvas.width * 2,
+                    y: this.ground - 120 - Math.random() * 80,
+                    width: Math.random() * 60 + 80,
+                    height: Math.random() * 40 + 120,
+                    depth: Math.random() * 0.4 + 0.2, // For parallax effect
+                    type: Math.floor(Math.random() * 3) // Different snowy structures (0: igloo, 1: snow mountain, 2: pine forest)
+               });
+          }
+     }
+     
+     generateSnowParticles() {
+          // Generate snow particles for level 2
+          for (let i = 0; i < 50; i++) {
+               this.snowParticles.push({
+                    x: Math.random() * this.canvas.width,
+                    y: Math.random() * this.canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5, // Slow horizontal drift
+                    vy: Math.random() * 1 + 0.5, // Falling speed
+                    size: Math.random() * 2 + 1, // Particle size
+                    opacity: Math.random() * 0.5 + 0.3 // Varying opacity
+               });
+          }
+     }
+     
+     updateSnowParticles() {
+          this.snowParticles.forEach(particle => {
+               particle.x += particle.vx;
+               particle.y += particle.vy;
+               
+               // Reset particle when it goes off screen
+               if (particle.y > this.canvas.height) {
+                    particle.y = -10;
+                    particle.x = Math.random() * this.canvas.width;
+               }
+               if (particle.x < 0) particle.x = this.canvas.width;
+               if (particle.x > this.canvas.width) particle.x = 0;
+          });
+     }
+     
+     drawSnowParticles() {
+          this.snowParticles.forEach(particle => {
+               this.ctx.fillStyle = `rgba(173, 216, 230, ${particle.opacity})`;
+               this.ctx.beginPath();
+               this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+               this.ctx.fill();
+          });
+     }
+     
      updateObstacles() {
           // Update ground obstacles
           this.obstacles = this.obstacles.filter(obstacle => {
@@ -641,11 +1271,22 @@ class EndlessRunner {
                
                // Activate fire trap periodically
                if (trap.timer <= 0) {
-                    trap.active = !trap.active;
-                    trap.timer = trap.active ? 60 : 90; // Active for 1s, inactive for 1.5s
+                    if (trap.type === 'boulder') {
+                         // Boulder falls immediately when spawned
+                         trap.falling = true;
+                         trap.velocityY += 0.5; // Gravity
+                         trap.y += trap.velocityY;
+                         // Remove boulder after it falls off screen
+                         if (trap.y > this.canvas.height) {
+                              return false;
+                         }
+                    } else {
+                         trap.active = !trap.active;
+                         trap.timer = trap.active ? 60 : 90; // Active for 1s, inactive for 1.5s
+                    }
                }
                
-               if (trap.active) {
+               if (trap.active && trap.type !== 'boulder') {
                     trap.frame += 0.5;
                     if (trap.frame >= 8) trap.frame = 0;
                }
@@ -715,9 +1356,17 @@ class EndlessRunner {
           let distanceToPlayer = Math.abs(this.monster.x - this.player.x);
           
           // Monster gets progressively closer with each obstacle hit
+          // Level 2 monsters are more aggressive - they get closer faster
           let hitCount = this.hitTimestamps ? this.hitTimestamps.length : 0;
           let baseDistance = 250; // Start with much more distance (increased from 150)
           let distanceReduction = 50; // Reduce distance by 50 pixels per hit (increased from 40)
+          
+          // Level 2 monsters close the distance much faster
+          if (this.level === 2) {
+               distanceReduction *= 1.5; // 75 pixels per hit instead of 50 in level 2
+               baseDistance *= 0.8; // Start closer in level 2 (200 instead of 250)
+          }
+          
           let chaseDistance = Math.max(40, baseDistance - (hitCount * distanceReduction)); // Minimum distance increased from 20 to 40
           let isDeadly = hitCount >= 3;
           
@@ -766,17 +1415,25 @@ class EndlessRunner {
                this.monster.speed = this.monster.baseSpeed * baseSpeedMultiplier;
           }
           
+          // Level 2 monsters are faster overall
+          if (this.level === 2) {
+               this.monster.speed *= 1.3; // 30% faster in level 2
+          }
+          
           // Animation
           this.monster.frame += 0.3;
           if (this.monster.frame >= 4) this.monster.frame = 0;
           
           // Monster can only catch player after 2 obstacle hits in recent time (reduced from 3)
+          // Level 2 monsters become deadly after fewer hits
+          let deadlyHitThreshold = this.level === 2 ? 1 : 2; // Only 1 hit needed in level 2
+          
           if (distanceToPlayer < this.monster.catchDistance && verticalDistance < 30) {
-               // Only catch if player has hit 2 obstacles recently (within 10 seconds)
-               if (this.hitTimestamps && this.hitTimestamps.length >= 2) { // Reduced from 3 to 2
+               // Only catch if player has hit enough obstacles recently (within 10 seconds)
+               if (this.hitTimestamps && this.hitTimestamps.length >= deadlyHitThreshold) { // Reduced from 3 to 2
                     this.gameOver();
                }
-               // If less than 2 hits, monster just follows but cannot catch
+               // If less than threshold hits, monster just follows but cannot catch
           }
      }
      
@@ -796,6 +1453,17 @@ class EndlessRunner {
                if (tree.x + tree.width < 0) {
                     tree.x = this.canvas.width + Math.random() * 200;
                     tree.y = this.ground - 80 - Math.random() * 40;
+               }
+          });
+     }
+     
+     updateBackgroundWalls() {
+          this.backgroundWalls.forEach(wall => {
+               // Much slower movement for true parallax background effect
+               wall.x -= this.gameSpeed * wall.depth * 0.1; // Very slow movement
+               if (wall.x + wall.width < 0) {
+                    wall.x = this.canvas.width + Math.random() * 300;
+                    wall.y = this.ground - 120 - Math.random() * 80;
                }
           });
      }
@@ -877,6 +1545,7 @@ class EndlessRunner {
                     const coinValue = this.scoreMultiplier ? 20 : 10; // Double points with multiplier
                     this.score += coinValue; // Bonus points for coins
                     this.createCoinParticles(coin.x + coin.width/2, coin.y + coin.height/2);
+                    this.playCoinSound();
                     this.coins.splice(i, 1);
                }
           }
@@ -888,6 +1557,7 @@ class EndlessRunner {
                     powerUp.collected = true;
                     this.activatePowerUp(powerUp.type);
                     this.createPowerUpParticles(powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2);
+                    this.playPowerUpSound();
                     this.powerUps.splice(i, 1);
                }
           }
@@ -932,32 +1602,34 @@ class EndlessRunner {
      }
      
      activatePowerUp(type) {
+          let durationMultiplier = this.level === 2 ? 0.6 : 1.0; // Power-ups last 40% less time in level 2
+          
           switch(type) {
                case 'shield':
                     this.invulnerable = true;
-                    this.invulnerableTimer = 180; // Reduced from 300 to 180 frames (3 seconds instead of 5)
+                    this.invulnerableTimer = Math.floor(180 * durationMultiplier); // Reduced from 300 to 180 frames (3 seconds instead of 5)
                     break;
                case 'magnet':
                     this.magnetCoins = true;
-                    this.magnetTimer = 360; // Reduced from 600 to 360 frames (6 seconds instead of 10)
+                    this.magnetTimer = Math.floor(360 * durationMultiplier); // Reduced from 600 to 360 frames (6 seconds instead of 10)
                     break;
                case 'speed':
                     this.speedBoost = true;
-                    this.speedBoostTimer = 180; // Reduced from 300 to 180 frames (3 seconds instead of 5)
-                    this.gameSpeed = this.baseGameSpeed * 1.3; // Reduced multiplier from 1.5 to 1.3
+                    this.speedBoostTimer = Math.floor(180 * durationMultiplier); // Reduced from 300 to 180 frames (3 seconds instead of 5)
+                    this.gameSpeed = this.baseGameSpeed * (this.level === 2 ? 1.2 : 1.3); // Reduced multiplier from 1.5 to 1.3, further reduced to 1.2 in level 2
                     break;
                case 'doublejump':
                     this.doubleJumpBoost = true;
-                    this.doubleJumpTimer = 240; // 4 seconds
+                    this.doubleJumpTimer = Math.floor(240 * durationMultiplier); // 4 seconds
                     break;
                case 'multiplier':
                     this.scoreMultiplier = true;
-                    this.scoreMultiplierTimer = 300; // 5 seconds
+                    this.scoreMultiplierTimer = Math.floor(300 * durationMultiplier); // 5 seconds
                     break;
                case 'slowmotion':
                     this.slowMotion = true;
-                    this.slowMotionTimer = 180; // 3 seconds
-                    this.gameSpeed = this.baseGameSpeed * 0.6; // Slow down the game
+                    this.slowMotionTimer = Math.floor(180 * durationMultiplier); // 3 seconds
+                    this.gameSpeed = this.baseGameSpeed * (this.level === 2 ? 0.7 : 0.6); // Slow down the game - less effective in level 2
                     break;
           }
      }
@@ -1008,6 +1680,9 @@ class EndlessRunner {
           
           // Visual feedback
           this.showHitEffect();
+          
+          // Play hit sound
+          this.playHitSound();
      }
      
      showHitEffect() {
@@ -1046,6 +1721,13 @@ class EndlessRunner {
                this.highScore = this.score;
                localStorage.setItem('highScore', this.highScore);
           }
+          
+          // Stop background music
+          this.stopBackgroundMusic();
+          
+          // Play game over sound
+          this.playGameOverSound();
+          
           this.showGameOverScreen();
      }
      
@@ -1059,9 +1741,32 @@ class EndlessRunner {
           this.score++;
           document.getElementById('score').textContent = this.score;
           
-          // Increase difficulty gradually
-          if (this.score % 75 === 0) { // Increased frequency from every 100 to every 75 points
-               this.baseGameSpeed += 0.5; // Increased increment from 0.3 to 0.5
+          // Check for level progression
+          if (this.score >= 150 && this.level === 1) {
+               this.level = 2;
+               // Update level display
+               const levelElement = document.getElementById('level');
+               if (levelElement) {
+                    levelElement.textContent = this.level;
+               }
+               
+               // Play level up sound
+               this.playLevelUpSound();
+               
+               // Change background music to level 2
+               this.startBackgroundMusic();
+          }
+          
+          // Increase difficulty gradually with level-specific multipliers
+          if (this.score % 75 === 0) {
+               let speedIncrease = 0.5; // Base speed increase
+               
+               // Level 2 is significantly harder - triple the speed increase for more challenging temple environment
+               if (this.level === 2) {
+                    speedIncrease *= 3.0; // 1.5 instead of 0.5 for level 2 - much more challenging
+               }
+               
+               this.baseGameSpeed += speedIncrease;
                if (this.slowdownTimer === 0) {
                     this.gameSpeed = this.baseGameSpeed;
                }
@@ -1383,112 +2088,409 @@ class EndlessRunner {
      }
      
      drawObstacles() {
-          // Draw gaps (ravines or streams in forest)
+          // Draw gaps (level-based)
           this.gaps.forEach(gap => {
                // Gap shadow/depth
                this.ctx.fillStyle = '#1F2937';
                this.ctx.fillRect(gap.x, gap.y, gap.width, gap.height);
                
-               // Gap edges with dirt/moss
-               this.ctx.fillStyle = '#8B4513';
-               this.ctx.fillRect(gap.x - 5, gap.y - 10, 5, 10);
-               this.ctx.fillRect(gap.x + gap.width, gap.y - 10, 5, 10);
-               
-               // Water/stream effect for forest theme
-               this.ctx.fillStyle = '#4682B4';
-               for (let i = 0; i < 3; i++) {
-                    this.ctx.fillRect(gap.x + i * 20, gap.y - 8 + i * 3, 15, 2);
+               if (this.level === 1) {
+                    // Gap edges with dirt/moss
+                    this.ctx.fillStyle = '#8B4513';
+                    this.ctx.fillRect(gap.x - 5, gap.y - 10, 5, 10);
+                    this.ctx.fillRect(gap.x + gap.width, gap.y - 10, 5, 10);
+                    
+                    // Water/stream effect for forest theme
+                    this.ctx.fillStyle = '#4682B4';
+                    for (let i = 0; i < 3; i++) {
+                         this.ctx.fillRect(gap.x + i * 20, gap.y - 8 + i * 3, 15, 2);
+                    }
+               } else if (this.level === 2) {
+                    // Crevasse edges with jagged ice formations for visibility
+                    this.ctx.fillStyle = '#00BFFF'; // Deep sky blue
+                    this.ctx.fillRect(gap.x - 10, gap.y - 20, 10, 20);
+                    this.ctx.fillRect(gap.x + gap.width, gap.y - 20, 10, 20);
+                    
+                    // Jagged ice edges - bright blue
+                    this.ctx.strokeStyle = '#4169E1'; // Royal blue
+                    this.ctx.lineWidth = 3;
+                    // Left edge
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(gap.x - 10, gap.y - 20);
+                    this.ctx.lineTo(gap.x, gap.y - 15);
+                    this.ctx.lineTo(gap.x - 8, gap.y - 10);
+                    this.ctx.lineTo(gap.x, gap.y - 5);
+                    this.ctx.lineTo(gap.x - 6, gap.y);
+                    this.ctx.stroke();
+                    
+                    // Right edge
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(gap.x + gap.width + 10, gap.y - 20);
+                    this.ctx.lineTo(gap.x + gap.width, gap.y - 15);
+                    this.ctx.lineTo(gap.x + gap.width + 8, gap.y - 10);
+                    this.ctx.lineTo(gap.x + gap.width, gap.y - 5);
+                    this.ctx.lineTo(gap.x + gap.width + 6, gap.y);
+                    this.ctx.stroke();
+                    
+                    // Wind-blown snow effect - darker for contrast
+                    this.ctx.fillStyle = '#F8F8FF';
+                    for (let i = 0; i < 6; i++) {
+                         this.ctx.fillRect(gap.x + i * 18, gap.y - 14 + i * 3, 12, 4);
+                    }
+                    
+                    // Ice formations at edges - bright blue
+                    this.ctx.fillStyle = '#4169E1'; // Royal blue
+                    this.ctx.fillRect(gap.x - 8, gap.y - 10, 6, 8);
+                    this.ctx.fillRect(gap.x + gap.width + 2, gap.y - 10, 6, 8);
+                    
+                    // Icicles hanging from crevasse edges - bright blue with white tips
+                    this.ctx.fillStyle = '#00BFFF';
+                    for (let i = 0; i < 4; i++) {
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(gap.x - 6 + i * 3, gap.y - 10);
+                         this.ctx.lineTo(gap.x - 6 + i * 3, gap.y - 18 - i * 4);
+                         this.ctx.lineTo(gap.x - 4 + i * 3, gap.y - 10);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // White tips for contrast
+                         this.ctx.fillStyle = '#FFFFFF';
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(gap.x - 6 + i * 3, gap.y - 18 - i * 4);
+                         this.ctx.lineTo(gap.x - 4 + i * 3, gap.y - 18 - i * 4);
+                         this.ctx.lineTo(gap.x - 5 + i * 3, gap.y - 22 - i * 4);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         this.ctx.fillStyle = '#00BFFF'; // Reset color
+                    }
                }
           });
           
-          // Draw ground obstacles (tree stumps and logs)
+          // Draw ground obstacles (level-based)
           this.obstacles.forEach(obstacle => {
-               if (obstacle.type === 'cactus') {
-                    // Tree stump
-                    this.ctx.fillStyle = '#8B4513'; // Brown trunk
-                    this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-                    
-                    // Tree rings
-                    this.ctx.strokeStyle = '#654321';
-                    this.ctx.lineWidth = 1;
-                    for (let i = 1; i < 4; i++) {
+               if (this.level === 1) {
+                    if (obstacle.type === 'cactus') {
+                         // Tree stump
+                         this.ctx.fillStyle = '#8B4513'; // Brown trunk
+                         this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                         
+                         // Tree rings
+                         this.ctx.strokeStyle = '#654321';
+                         this.ctx.lineWidth = 1;
+                         for (let i = 1; i < 4; i++) {
+                              this.ctx.beginPath();
+                              this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, 
+                                        obstacle.width/2 - i * 3, 0, Math.PI * 2);
+                              this.ctx.stroke();
+                         }
+                         
+                         // Moss on top
+                         this.ctx.fillStyle = '#228B22';
+                         this.ctx.fillRect(obstacle.x + 2, obstacle.y, obstacle.width - 4, 5);
+                    } else {
+                         // Boulder/rock
+                         this.ctx.fillStyle = '#696969';
+                         this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                         
+                         // Rock texture
+                         this.ctx.fillStyle = '#808080';
+                         this.ctx.fillRect(obstacle.x + 3, obstacle.y + 3, obstacle.width - 6, obstacle.height - 6);
+                         
+                         // Moss patches
+                         this.ctx.fillStyle = '#32CD32';
+                         this.ctx.fillRect(obstacle.x, obstacle.y, 8, 3);
+                         this.ctx.fillRect(obstacle.x + obstacle.width - 8, obstacle.y + obstacle.height - 3, 8, 3);
+                    }
+               } else if (this.level === 2) {
+                    if (obstacle.type === 'snowman') {
+                         // Snowman - soft obstacle with bright contrasting colors for visibility
+                         // Base (bottom snowball) - keep white but add dark outline
+                         this.ctx.fillStyle = '#FFFFFF';
                          this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, 
-                                   obstacle.width/2 - i * 3, 0, Math.PI * 2);
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 8, 12, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Dark outline for visibility
+                         this.ctx.strokeStyle = '#FF0000'; // Bright red outline
+                         this.ctx.lineWidth = 3;
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 8, 12, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                         
+                         // Middle snowball
+                         this.ctx.fillStyle = '#FFFFFF';
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 20, 8, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Dark outline
+                         this.ctx.strokeStyle = '#FF0000';
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 20, 8, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                         
+                         // Head (top snowball)
+                         this.ctx.fillStyle = '#FFFFFF';
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 28, 6, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Dark outline
+                         this.ctx.strokeStyle = '#FF0000';
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 28, 6, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                         
+                         // Eyes - bright for contrast
+                         this.ctx.fillStyle = '#000000';
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width/2 - 2, obstacle.y + obstacle.height - 30, 1, 0, Math.PI * 2);
+                         this.ctx.arc(obstacle.x + obstacle.width/2 + 2, obstacle.y + obstacle.height - 30, 1, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Carrot nose - bright orange
+                         this.ctx.fillStyle = '#FF4500';
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 28);
+                         this.ctx.lineTo(obstacle.x + obstacle.width/2 + 4, obstacle.y + obstacle.height - 27);
+                         this.ctx.lineTo(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 26);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // Coal buttons - black
+                         this.ctx.fillStyle = '#000000';
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 18, 1.5, 0, Math.PI * 2);
+                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 14, 1.5, 0, Math.PI * 2);
+                         this.ctx.fill();
+                    } else if (obstacle.type === 'ice_crystal') {
+                         // Ice crystal - geometric obstacle with bright contrasting colors
+                         this.ctx.fillStyle = '#00BFFF'; // Deep sky blue
+                         
+                         // Crystal base
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y);
+                         this.ctx.lineTo(obstacle.x + 5, obstacle.y + obstacle.height);
+                         this.ctx.lineTo(obstacle.x + obstacle.width - 5, obstacle.y + obstacle.height);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // Dark outline for visibility
+                         this.ctx.strokeStyle = '#000080'; // Dark blue outline
+                         this.ctx.lineWidth = 3;
+                         this.ctx.stroke();
+                         
+                         // Crystal facets - darker blue for contrast
+                         this.ctx.fillStyle = '#4169E1'; // Royal blue
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y + 5);
+                         this.ctx.lineTo(obstacle.x + 12, obstacle.y + obstacle.height - 5);
+                         this.ctx.lineTo(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 10);
+                         this.ctx.lineTo(obstacle.x + obstacle.width - 12, obstacle.y + obstacle.height - 5);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // Dark outline for crystal facets
+                         this.ctx.strokeStyle = '#000080';
+                         this.ctx.lineWidth = 2;
+                         this.ctx.stroke();
+                         
+                         // Ice shine effects - bright white with black outline
+                         this.ctx.fillStyle = '#FFFFFF';
+                         this.ctx.fillRect(obstacle.x + 8, obstacle.y + 8, obstacle.width - 16, 3);
+                         this.ctx.strokeStyle = '#000000';
+                         this.ctx.lineWidth = 1;
+                         this.ctx.strokeRect(obstacle.x + 8, obstacle.y + 8, obstacle.width - 16, 3);
+                         
+                         this.ctx.fillRect(obstacle.x + obstacle.width/2 - 2, obstacle.y + 15, 4, 2);
+                         this.ctx.strokeRect(obstacle.x + obstacle.width/2 - 2, obstacle.y + 15, 4, 2);
+                         
+                         // Crystal sparkle - bright contrasting colors
+                         this.ctx.fillStyle = '#FF0000'; // Red sparkles for visibility
+                         for (let i = 0; i < 5; i++) {
+                              this.ctx.beginPath();
+                              this.ctx.arc(obstacle.x + 8 + i * 4, obstacle.y + 20 + i * 3, 1.5, 0, Math.PI * 2);
+                              this.ctx.fill();
+                         }
+                    }
+               }
+          });
+          
+          // Draw fallen trees (level-based)
+          this.fallenTrees.forEach(tree => {
+               if (this.level === 1) {
+                    // Tree trunk
+                    this.ctx.fillStyle = '#8B4513';
+                    this.ctx.fillRect(tree.x, tree.y + tree.height - 15, tree.width, 15);
+                    
+                    // Tree bark texture
+                    this.ctx.strokeStyle = '#654321';
+                    this.ctx.lineWidth = 2;
+                    for (let i = 0; i < tree.width; i += 8) {
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(tree.x + i, tree.y + tree.height - 15);
+                         this.ctx.lineTo(tree.x + i + 4, tree.y + tree.height);
                          this.ctx.stroke();
                     }
                     
-                    // Moss on top
+                    // Tree foliage
                     this.ctx.fillStyle = '#228B22';
-                    this.ctx.fillRect(obstacle.x + 2, obstacle.y, obstacle.width - 4, 5);
-               } else {
-                    // Boulder/rock
-                    this.ctx.fillStyle = '#696969';
-                    this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-                    
-                    // Rock texture
-                    this.ctx.fillStyle = '#808080';
-                    this.ctx.fillRect(obstacle.x + 3, obstacle.y + 3, obstacle.width - 6, obstacle.height - 6);
-                    
-                    // Moss patches
-                    this.ctx.fillStyle = '#32CD32';
-                    this.ctx.fillRect(obstacle.x, obstacle.y, 8, 3);
-                    this.ctx.fillRect(obstacle.x + obstacle.width - 8, obstacle.y + obstacle.height - 3, 8, 3);
-               }
-          });
-          
-          // Draw fallen trees
-          this.fallenTrees.forEach(tree => {
-               // Tree trunk
-               this.ctx.fillStyle = '#8B4513';
-               this.ctx.fillRect(tree.x, tree.y + tree.height - 15, tree.width, 15);
-               
-               // Tree bark texture
-               this.ctx.strokeStyle = '#654321';
-               this.ctx.lineWidth = 2;
-               for (let i = 0; i < tree.width; i += 8) {
                     this.ctx.beginPath();
-                    this.ctx.moveTo(tree.x + i, tree.y + tree.height - 15);
-                    this.ctx.lineTo(tree.x + i + 4, tree.y + tree.height);
-                    this.ctx.stroke();
-               }
-               
-               // Tree foliage
-               this.ctx.fillStyle = '#228B22';
-               this.ctx.beginPath();
-               this.ctx.ellipse(tree.x + tree.width * 0.2, tree.y + tree.height - 25, 20, 15, 0, 0, Math.PI * 2);
-               this.ctx.ellipse(tree.x + tree.width * 0.5, tree.y + tree.height - 30, 25, 18, 0, 0, Math.PI * 2);
-               this.ctx.ellipse(tree.x + tree.width * 0.8, tree.y + tree.height - 20, 18, 12, 0, 0, Math.PI * 2);
-               this.ctx.fill();
-               
-               // Slide indicator for tall trees
-               if (tree.canSlideUnder) {
-                    this.ctx.fillStyle = 'rgba(139, 92, 246, 0.7)';
-                    this.ctx.fillRect(tree.x, tree.y + tree.height - 5, tree.width, 5);
+                    this.ctx.ellipse(tree.x + tree.width * 0.2, tree.y + tree.height - 25, 20, 15, 0, 0, Math.PI * 2);
+                    this.ctx.ellipse(tree.x + tree.width * 0.5, tree.y + tree.height - 30, 25, 18, 0, 0, Math.PI * 2);
+                    this.ctx.ellipse(tree.x + tree.width * 0.8, tree.y + tree.height - 20, 18, 12, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Slide indicator for tall trees
+                    if (tree.canSlideUnder) {
+                         this.ctx.fillStyle = 'rgba(139, 92, 246, 0.7)';
+                         this.ctx.fillRect(tree.x, tree.y + tree.height - 5, tree.width, 5);
+                    }
+               } else if (this.level === 2) {
+                    // Pine tree - evergreen with snow, bright green for visibility
+                    // Tree trunk
+                    this.ctx.fillStyle = '#8B4513';
+                    this.ctx.fillRect(tree.x + tree.width * 0.4, tree.y + tree.height - 20, tree.width * 0.2, 20);
+                    
+                    // Tree bark texture
+                    this.ctx.strokeStyle = '#654321';
+                    this.ctx.lineWidth = 2;
+                    for (let i = 0; i < tree.width * 0.2; i += 6) {
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(tree.x + tree.width * 0.4 + i, tree.y + tree.height - 20);
+                         this.ctx.lineTo(tree.x + tree.width * 0.4 + i + 3, tree.y + tree.height);
+                         this.ctx.stroke();
+                    }
+                    
+                    // Pine branches - bright green for contrast against snow
+                    this.ctx.fillStyle = '#228B22'; // Forest green
+                    // Bottom layer
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(tree.x + tree.width * 0.5, tree.y + tree.height - 25);
+                    this.ctx.lineTo(tree.x + tree.width * 0.15, tree.y + tree.height - 10);
+                    this.ctx.lineTo(tree.x + tree.width * 0.85, tree.y + tree.height - 10);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    
+                    // Middle layer
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(tree.x + tree.width * 0.5, tree.y + tree.height - 35);
+                    this.ctx.lineTo(tree.x + tree.width * 0.2, tree.y + tree.height - 20);
+                    this.ctx.lineTo(tree.x + tree.width * 0.8, tree.y + tree.height - 20);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    
+                    // Top layer
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(tree.x + tree.width * 0.5, tree.y + tree.height - 45);
+                    this.ctx.lineTo(tree.x + tree.width * 0.25, tree.y + tree.height - 30);
+                    this.ctx.lineTo(tree.x + tree.width * 0.75, tree.y + tree.height - 30);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    
+                    // Snow on branches - white for contrast
+                    this.ctx.fillStyle = '#FFFFFF';
+                    this.ctx.fillRect(tree.x + tree.width * 0.18, tree.y + tree.height - 12, tree.width * 0.64, 2);
+                    this.ctx.fillRect(tree.x + tree.width * 0.22, tree.y + tree.height - 22, tree.width * 0.56, 2);
+                    this.ctx.fillRect(tree.x + tree.width * 0.28, tree.y + tree.height - 32, tree.width * 0.44, 2);
+                    
+                    // Dark outline for visibility
+                    this.ctx.strokeStyle = '#000000';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(tree.x + tree.width * 0.18, tree.y + tree.height - 12, tree.width * 0.64, 2);
+                    this.ctx.strokeRect(tree.x + tree.width * 0.22, tree.y + tree.height - 22, tree.width * 0.56, 2);
+                    this.ctx.strokeRect(tree.x + tree.width * 0.28, tree.y + tree.height - 32, tree.width * 0.44, 2);
+                    
+                    // Slide indicator for tall trees
+                    if (tree.canSlideUnder) {
+                         this.ctx.fillStyle = 'rgba(255, 0, 0, 0.7)'; // Red for visibility
+                         this.ctx.fillRect(tree.x, tree.y + tree.height - 5, tree.width, 5);
+                    }
                }
           });
           
-          // Draw fire traps (pit traps with spikes)
+          // Draw fire traps (level-based)
           this.fireTraps.forEach(trap => {
-               // Trap pit
-               this.ctx.fillStyle = '#2F2F2F';
-               this.ctx.fillRect(trap.x, trap.y + trap.height - 10, trap.width, 10);
-               
-               if (trap.active) {
-                    // Spiked pit - wooden spikes
-                    this.ctx.fillStyle = '#8B4513';
-                    for (let i = 0; i < trap.width; i += 8) {
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(trap.x + i, trap.y + trap.height);
-                         this.ctx.lineTo(trap.x + i + 4, trap.y + trap.height - 20);
-                         this.ctx.lineTo(trap.x + i + 8, trap.y + trap.height);
-                         this.ctx.closePath();
-                         this.ctx.fill();
+               if (this.level === 1) {
+                    // Trap pit
+                    this.ctx.fillStyle = '#2F2F2F';
+                    this.ctx.fillRect(trap.x, trap.y + trap.height - 10, trap.width, 10);
+                    
+                    if (trap.active) {
+                         // Spiked pit - wooden spikes
+                         this.ctx.fillStyle = '#8B4513';
+                         for (let i = 0; i < trap.width; i += 8) {
+                              this.ctx.beginPath();
+                              this.ctx.moveTo(trap.x + i, trap.y + trap.height);
+                              this.ctx.lineTo(trap.x + i + 4, trap.y + trap.height - 20);
+                              this.ctx.lineTo(trap.x + i + 8, trap.y + trap.height);
+                              this.ctx.closePath();
+                              this.ctx.fill();
+                         }
+                    } else {
+                         // Inactive pit - covered with leaves
+                         this.ctx.fillStyle = '#228B22';
+                         this.ctx.fillRect(trap.x + 5, trap.y + trap.height - 5, trap.width - 10, 5);
                     }
-               } else {
-                    // Inactive pit - covered with leaves
-                    this.ctx.fillStyle = '#228B22';
-                    this.ctx.fillRect(trap.x + 5, trap.y + trap.height - 5, trap.width - 10, 5);
+               } else if (this.level === 2) {
+                    if (trap.type === 'boulder') {
+                         // Rolling boulder - dark gray with bright outline
+                         this.ctx.fillStyle = '#696969';
+                         this.ctx.beginPath();
+                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Bright outline for visibility
+                         this.ctx.strokeStyle = '#FF0000';
+                         this.ctx.lineWidth = 3;
+                         this.ctx.beginPath();
+                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                         
+                         // Boulder texture
+                         this.ctx.fillStyle = '#808080';
+                         this.ctx.beginPath();
+                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2 - 5, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Boulder highlights - bright for contrast
+                         this.ctx.fillStyle = '#FFFFFF';
+                         this.ctx.beginPath();
+                         this.ctx.arc(trap.x + trap.width/2 - 8, trap.y + trap.height/2 - 8, 4, 0, Math.PI * 2);
+                         this.ctx.fill();
+                    } else {
+                         // Avalanche - falling snow chunks with dark outlines and contrasting colors
+                         this.ctx.fillStyle = '#F8F8FF'; // Slightly off-white
+                         this.ctx.beginPath();
+                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Dark outline for visibility
+                         this.ctx.strokeStyle = '#8B0000'; // Dark red outline
+                         this.ctx.lineWidth = 4;
+                         this.ctx.beginPath();
+                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                         
+                         // Snow texture with darker accents
+                         this.ctx.fillStyle = '#E6F3FF'; // Light blue
+                         this.ctx.beginPath();
+                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2 - 5, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Ice chunks in snow - bright contrasting colors
+                         this.ctx.fillStyle = '#FF0000'; // Red ice chunks for visibility
+                         for (let i = 0; i < 3; i++) {
+                              this.ctx.beginPath();
+                              this.ctx.arc(trap.x + 10 + i * 10, trap.y + 15 + i * 5, 3, 0, Math.PI * 2);
+                              this.ctx.fill();
+                              
+                              // Add black outline to ice chunks
+                              this.ctx.strokeStyle = '#000000';
+                              this.ctx.lineWidth = 1;
+                              this.ctx.stroke();
+                         }
+                    }
                }
           });
           
@@ -1535,30 +2537,63 @@ class EndlessRunner {
                this.ctx.fill();
           });
           
-          // Draw spikes (thorn bushes)
+          // Draw spikes (level-based)
           this.spikes.forEach(spike => {
-               this.ctx.fillStyle = '#228B22';
-               // Bush base
-               this.ctx.fillRect(spike.x, spike.y + spike.height - 5, spike.width, 5);
-               
-               // Thorns/branches
-               this.ctx.strokeStyle = '#8B4513';
-               this.ctx.lineWidth = 3;
-               for (let i = 0; i < spike.width; i += 6) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(spike.x + i, spike.y + spike.height);
-                    this.ctx.lineTo(spike.x + i + 3, spike.y + spike.height - 15);
-                    this.ctx.stroke();
+               if (this.level === 1) {
+                    this.ctx.fillStyle = '#228B22';
+                    // Bush base
+                    this.ctx.fillRect(spike.x, spike.y + spike.height - 5, spike.width, 5);
                     
-                    // Thorn tips
-                    this.ctx.fillStyle = '#DC143C';
-                    this.ctx.beginPath();
-                    this.ctx.arc(spike.x + i + 3, spike.y + spike.height - 15, 2, 0, Math.PI * 2);
-                    this.ctx.fill();
+                    // Thorns/branches
+                    this.ctx.strokeStyle = '#8B4513';
+                    this.ctx.lineWidth = 3;
+                    for (let i = 0; i < spike.width; i += 6) {
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(spike.x + i, spike.y + spike.height);
+                         this.ctx.lineTo(spike.x + i + 3, spike.y + spike.height - 15);
+                         this.ctx.stroke();
+                         
+                         // Thorn tips
+                         this.ctx.fillStyle = '#DC143C';
+                         this.ctx.beginPath();
+                         this.ctx.arc(spike.x + i + 3, spike.y + spike.height - 15, 2, 0, Math.PI * 2);
+                         this.ctx.fill();
+                    }
+               } else if (this.level === 2) {
+                    // Icicles - hanging ice spikes with bright blue colors for visibility
+                    this.ctx.fillStyle = '#00BFFF'; // Deep sky blue base
+                    // Ice base
+                    this.ctx.fillRect(spike.x + 3, spike.y + spike.height - 10, spike.width - 6, 10);
+                    
+                    // Icicles - bright blue with glow
+                    this.ctx.strokeStyle = '#4169E1'; // Royal blue
+                    this.ctx.lineWidth = 4;
+                    this.ctx.shadowColor = '#4169E1';
+                    this.ctx.shadowBlur = 6;
+                    for (let i = 0; i < spike.width; i += 10) {
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(spike.x + i + 5, spike.y + spike.height - 10);
+                         this.ctx.lineTo(spike.x + i + 5, spike.y + spike.height - 35);
+                         this.ctx.stroke();
+                         
+                         // Icicle tips with bright blue shine
+                         this.ctx.fillStyle = '#00BFFF';
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(spike.x + i + 3, spike.y + spike.height - 35);
+                         this.ctx.lineTo(spike.x + i + 5, spike.y + spike.height - 40);
+                         this.ctx.lineTo(spike.x + i + 7, spike.y + spike.height - 35);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // Ice reflection - bright white
+                         this.ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
+                         this.ctx.fillRect(spike.x + i + 4, spike.y + spike.height - 25, 2, 10);
+                    }
+                    this.ctx.shadowBlur = 0; // Reset shadow
                }
           });
           
-          // Draw moving platforms (floating logs)
+          // Draw moving platforms (level-based)
           this.movingPlatforms.forEach(platform => {
                // Platform shadow
                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
@@ -1581,25 +2616,67 @@ class EndlessRunner {
                     this.ctx.setLineDash([]);
                }
                
-               // Log platform
-               this.ctx.fillStyle = platform.strategic ? '#A0522D' : '#8B4513'; // Lighter brown for strategic
-               this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-               
-               // Reset shadow
-               this.ctx.shadowBlur = 0;
-               
-               // Log rings
-               this.ctx.strokeStyle = '#654321';
-               this.ctx.lineWidth = 1;
-               for (let i = 0; i < platform.width; i += 10) {
-                    this.ctx.beginPath();
-                    this.ctx.arc(platform.x + i + 5, platform.y + platform.height/2, 3, 0, Math.PI * 2);
-                    this.ctx.stroke();
+               if (this.level === 1) {
+                    // Log platform
+                    this.ctx.fillStyle = platform.strategic ? '#A0522D' : '#8B4513'; // Lighter brown for strategic
+                    this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                    
+                    // Reset shadow
+                    this.ctx.shadowBlur = 0;
+                    
+                    // Log rings
+                    this.ctx.strokeStyle = '#654321';
+                    this.ctx.lineWidth = 1;
+                    for (let i = 0; i < platform.width; i += 10) {
+                         this.ctx.beginPath();
+                         this.ctx.arc(platform.x + i + 5, platform.y + platform.height/2, 3, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                    }
+                    
+                    // Moss on log - with special color for strategic platforms
+                    this.ctx.fillStyle = platform.strategic ? '#00FF00' : '#32CD32'; // Brighter green for strategic
+                    this.ctx.fillRect(platform.x, platform.y, platform.width, 3);
+               } else if (this.level === 2) {
+                    // Floating ice platform - bright blue with glowing effect
+                    this.ctx.fillStyle = platform.strategic ? '#00BFFF' : '#4169E1'; // Deep sky blue for strategic, royal blue for normal
+                    this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                    
+                    // Bright outline for contrast
+                    this.ctx.strokeStyle = '#FFFFFF';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+                    
+                    // Reset shadow
+                    this.ctx.shadowBlur = 0;
+                    
+                    // Floating ice pattern - glowing blue
+                    this.ctx.strokeStyle = '#87CEEB';
+                    this.ctx.lineWidth = 1;
+                    for (let i = 0; i < platform.width; i += 25) {
+                         this.ctx.strokeRect(platform.x + i, platform.y, 25, platform.height);
+                    }
+                    
+                    // Ice texture with frost - bright white with glow effect
+                    this.ctx.fillStyle = platform.strategic ? '#F0F8FF' : '#E6F3FF'; // Lighter blue instead of white
+                    this.ctx.fillRect(platform.x, platform.y, platform.width, 5);
+                    
+                    // Ice shine/reflection - bright white with glow effect
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
+                    this.ctx.fillRect(platform.x + 4, platform.y + 3, platform.width - 8, 2);
+                    
+                    // Add dark outline to shine for contrast
+                    this.ctx.strokeStyle = '#000080';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.strokeRect(platform.x + 4, platform.y + 3, platform.width - 8, 2);
+                    
+                    // Floating ice particles effect
+                    this.ctx.fillStyle = 'rgba(173, 216, 230, 0.6)';
+                    for (let i = 0; i < 6; i++) {
+                         this.ctx.beginPath();
+                         this.ctx.arc(platform.x + 10 + i * 12, platform.y - 3, 1.5, 0, Math.PI * 2);
+                         this.ctx.fill();
+                    }
                }
-               
-               // Moss on log - with special color for strategic platforms
-               this.ctx.fillStyle = platform.strategic ? '#00FF00' : '#32CD32'; // Brighter green for strategic
-               this.ctx.fillRect(platform.x, platform.y, platform.width, 3);
                
                // Add help icon for strategic platforms
                if (platform.strategic) {
@@ -1787,10 +2864,20 @@ class EndlessRunner {
           this.ctx.fillRect(mx - 4, this.ground - 3, monster.width + 8, 6);
           
           // Monster body - main torso with irregular shape (scaled up)
-          if (isDeadly) {
-               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#1A0000' : '#2D1B1B';
-          } else {
-               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#4A1515' : '#7F2020';
+          if (this.level === 1) {
+               // Temple monster - red/dark
+               if (isDeadly) {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#1A0000' : '#2D1B1B';
+               } else {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#4A1515' : '#7F2020';
+               }
+          } else if (this.level === 2) {
+               // Snow monster - blue/ice
+               if (isDeadly) {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#001122' : '#1E3A5F';
+               } else {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#002244' : '#4169E1';
+               }
           }
           
           // Main body (irregular shape) - scaled proportionally
@@ -1805,10 +2892,20 @@ class EndlessRunner {
           this.ctx.fill();
           
           // Monster head (larger and more menacing) - side profile
-          if (isDeadly) {
-               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#000000' : '#1A0A0A';
-          } else {
-               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#2D0000' : '#450A0A';
+          if (this.level === 1) {
+               // Temple monster head
+               if (isDeadly) {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#000000' : '#1A0A0A';
+               } else {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#2D0000' : '#450A0A';
+               }
+          } else if (this.level === 2) {
+               // Snow monster head - icy blue
+               if (isDeadly) {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#000011' : '#0F1419';
+               } else {
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#001133' : '#1E2A3D';
+               }
           }
           
           // Head shape (skull-like side profile) - scaled up
@@ -1817,7 +2914,7 @@ class EndlessRunner {
           this.ctx.fill();
           
           // Monster horns/spikes (facing right) - scaled up
-          this.ctx.fillStyle = isDeadly ? '#800000' : '#600000';
+          this.ctx.fillStyle = this.level === 1 ? (isDeadly ? '#800000' : '#600000') : (isDeadly ? '#0088AA' : '#00AACC');
           this.ctx.beginPath();
           this.ctx.moveTo(mx + 20, my + 3 + bounce);
           this.ctx.lineTo(mx + 24, my - 8 + bounce);
@@ -1839,7 +2936,7 @@ class EndlessRunner {
           this.ctx.fill();
           
           // Monster arms/claws - scaled up
-          this.ctx.fillStyle = isDeadly ? '#2D0505' : '#4A1010';
+          this.ctx.fillStyle = this.level === 1 ? (isDeadly ? '#2D0505' : '#4A1010') : (isDeadly ? '#0A1A2A' : '#1E3A5F');
           const armSwing = Math.sin(monster.frame * 1.2) * 5;
           
           // Left arm
@@ -1862,7 +2959,7 @@ class EndlessRunner {
           this.ctx.fillRect(mx + 38 - armSwing, my + 59 + bounce, 5, 9);
           
           // Monster legs - scaled up
-          this.ctx.fillStyle = isDeadly ? '#1A0505' : '#3D0A0A';
+          this.ctx.fillStyle = this.level === 1 ? (isDeadly ? '#1A0505' : '#3D0A0A') : (isDeadly ? '#0A1419' : '#1E2A3D');
           this.ctx.beginPath();
           this.ctx.roundRect(mx + 14, my + 67 + bounce, 13, 24, 3);
           this.ctx.fill();
@@ -1871,16 +2968,30 @@ class EndlessRunner {
           this.ctx.fill();
           
           // Eye - glowing effect, single eye visible from side, scaled up
-          if (isDeadly) {
-               // Deadly monster - bright glowing red eye
-               this.ctx.fillStyle = '#FF0000';
-               this.ctx.shadowColor = '#FF0000';
-               this.ctx.shadowBlur = 15;
-          } else {
-               // Normal monster - yellow/orange eye
-               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
-               this.ctx.shadowColor = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
-               this.ctx.shadowBlur = 8;
+          if (this.level === 1) {
+               if (isDeadly) {
+                    // Deadly monster - bright glowing red eye
+                    this.ctx.fillStyle = '#FF0000';
+                    this.ctx.shadowColor = '#FF0000';
+                    this.ctx.shadowBlur = 15;
+               } else {
+                    // Normal monster - yellow/orange eye
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
+                    this.ctx.shadowColor = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
+                    this.ctx.shadowBlur = 8;
+               }
+          } else if (this.level === 2) {
+               if (isDeadly) {
+                    // Deadly monster - bright glowing icy blue eye
+                    this.ctx.fillStyle = '#00BFFF';
+                    this.ctx.shadowColor = '#00BFFF';
+                    this.ctx.shadowBlur = 15;
+               } else {
+                    // Normal monster - icy blue eye
+                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#87CEEB' : '#4682B4';
+                    this.ctx.shadowColor = this.slowdownTimer > 0 ? '#87CEEB' : '#4682B4';
+                    this.ctx.shadowBlur = 8;
+               }
           }
           
           // Single visible eye (side profile) - bigger and more menacing
@@ -2030,20 +3141,208 @@ class EndlessRunner {
           });
      }
      
-     drawGround() {
-          this.ctx.fillStyle = '#228B22';
-          this.ctx.fillRect(0, this.ground, this.canvas.width, this.canvas.height - this.ground);
-          
-          // Ground pattern - forest floor with leaves and dirt patches
-          this.ctx.fillStyle = '#32CD32';
-          for (let i = 0; i < this.canvas.width; i += 60) {
-               let offset = (i + this.score) % 120;
-               this.ctx.fillRect(offset, this.ground, 30, 8);
+     drawBackgroundWalls() {
+          this.backgroundWalls.forEach(wall => {
+               const alpha = wall.depth * 0.7 + 0.3; // Closer walls are more opaque
+               const wx = wall.x;
+               const wy = wall.y;
                
-               // Add some leaf litter
-               this.ctx.fillStyle = '#8B4513';
-               this.ctx.fillRect(offset + 5, this.ground + 2, 8, 3);
+               // Create multiple snowy structures instead of temple walls
+               switch(wall.type) {
+                    case 0: // Igloo
+                         // Igloo dome
+                         this.ctx.fillStyle = `rgba(240, 248, 255, ${alpha})`;
+                         this.ctx.beginPath();
+                         this.ctx.arc(wx + wall.width/2, wy + wall.height - 20, wall.width/2, Math.PI, 0);
+                         this.ctx.fill();
+                         
+                         // Igloo entrance
+                         this.ctx.fillStyle = `rgba(176, 224, 230, ${alpha * 0.8})`;
+                         this.ctx.fillRect(wx + wall.width/2 - 15, wy + wall.height - 40, 30, 20);
+                         
+                         // Igloo blocks pattern
+                         this.ctx.strokeStyle = `rgba(173, 216, 230, ${alpha})`;
+                         this.ctx.lineWidth = 1;
+                         for (let i = 0; i < 3; i++) {
+                              this.ctx.beginPath();
+                              this.ctx.arc(wx + wall.width/2, wy + wall.height - 20 - i * 15, wall.width/2 - i * 10, Math.PI, 0);
+                              this.ctx.stroke();
+                         }
+                         
+                         // Snow on top
+                         this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                         this.ctx.fillRect(wx + wall.width/2 - 20, wy + wall.height - 50, 40, 10);
+                         break;
+                         
+                    case 1: // Snow-covered mountain
+                         // Mountain base
+                         this.ctx.fillStyle = `rgba(169, 169, 169, ${alpha})`;
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(wx, wy + wall.height);
+                         this.ctx.lineTo(wx + wall.width/2, wy + wall.height - 60);
+                         this.ctx.lineTo(wx + wall.width, wy + wall.height);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // Snow cap
+                         this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(wx + wall.width/2 - 30, wy + wall.height - 60);
+                         this.ctx.lineTo(wx + wall.width/2, wy + wall.height - 80);
+                         this.ctx.lineTo(wx + wall.width/2 + 30, wy + wall.height - 60);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // Mountain texture
+                         this.ctx.strokeStyle = `rgba(105, 105, 105, ${alpha})`;
+                         this.ctx.lineWidth = 2;
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(wx + 20, wy + wall.height - 20);
+                         this.ctx.lineTo(wx + wall.width/2, wy + wall.height - 70);
+                         this.ctx.lineTo(wx + wall.width - 20, wy + wall.height - 25);
+                         this.ctx.stroke();
+                         
+                         // Ice crystals on mountain
+                         this.ctx.fillStyle = `rgba(173, 216, 230, ${alpha * 0.7})`;
+                         for (let i = 0; i < 5; i++) {
+                              this.ctx.beginPath();
+                              this.ctx.arc(wx + 30 + i * 15, wy + wall.height - 40 - i * 5, 2, 0, Math.PI * 2);
+                              this.ctx.fill();
+                         }
+                         break;
+                         
+                    case 2: // Pine forest background
+                         // Multiple pine trees
+                         for (let i = 0; i < 3; i++) {
+                              const treeX = wx + 20 + i * 25;
+                              const treeY = wy + wall.height - 40;
+                              
+                              // Tree trunk
+                              this.ctx.fillStyle = `rgba(101, 67, 33, ${alpha})`;
+                              this.ctx.fillRect(treeX - 2, treeY, 4, 30);
+                              
+                              // Pine branches
+                              this.ctx.fillStyle = `rgba(34, 139, 34, ${alpha})`;
+                              this.ctx.beginPath();
+                              this.ctx.moveTo(treeX, treeY - 5);
+                              this.ctx.lineTo(treeX - 8, treeY + 5);
+                              this.ctx.lineTo(treeX + 8, treeY + 5);
+                              this.ctx.closePath();
+                              this.ctx.fill();
+                              
+                              this.ctx.beginPath();
+                              this.ctx.moveTo(treeX, treeY - 15);
+                              this.ctx.lineTo(treeX - 6, treeY - 5);
+                              this.ctx.lineTo(treeX + 6, treeY - 5);
+                              this.ctx.closePath();
+                              this.ctx.fill();
+                              
+                              // Snow on branches
+                              this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                              this.ctx.fillRect(treeX - 5, treeY - 2, 10, 2);
+                              this.ctx.fillRect(treeX - 4, treeY - 12, 8, 2);
+                         }
+                         break;
+               }
+               
+               // Add torches on temple structures for atmosphere
+               // Use deterministic decision based on wall properties to prevent random appearance/disappearance
+               const torchPresenceSeed = Math.sin(wall.depth * 50 + wall.type * 25 + wall.width * 0.02) * 1000;
+               if (Math.abs(torchPresenceSeed) % 1000 < 400) { // 40% chance for torches, but deterministic
+                    // Use deterministic positioning based on stable wall properties (not wall.x which moves)
+                    const torchSeed = Math.sin(wall.depth * 100 + wall.type * 50 + wall.width * 0.01) * 1000;
+                    const torchX = wx + wall.width * (0.3 + (Math.abs(torchSeed) % 1000) / 1000 * 0.4);
+                    const torchY = wy + wall.height * 0.6;
+                    
+                    // Torch holder
+                    this.ctx.fillStyle = `rgba(101, 67, 33, ${alpha})`;
+                    this.ctx.fillRect(torchX - 2, torchY, 4, 15);
+                    
+                    // Torch flame with flicker
+                    const flicker = Math.sin(Date.now() * 0.01 + wall.depth * 10 + wall.type) * 0.3 + 0.7;
+                    this.ctx.fillStyle = `rgba(255, 165, 0, ${alpha * 0.8 * flicker})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(torchX, torchY - 3, 3 * flicker, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Flame glow
+                    this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.3 * flicker})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(torchX, torchY - 3, 6 * flicker, 0, Math.PI * 2);
+                    this.ctx.fill();
+               }
+               
+               // Add some mystical glow effects
+               // Use deterministic decision based on wall properties to prevent random appearance/disappearance
+               const glowPresenceSeed = Math.cos(wall.depth * 75 + wall.type * 30 + wall.width * 0.015) * 1000;
+               if (Math.abs(glowPresenceSeed) % 1000 < 200) { // 20% chance for mystical effects, but deterministic
+                    // Use deterministic positioning based on stable wall properties
+                    const glowSeed = Math.cos(wall.depth * 200 + wall.type * 75 + wall.width * 0.005) * 1000;
+                    const glowX = wx + wall.width * 0.5 + (Math.abs(glowSeed) % 200 - 100) * 0.5;
+                    const glowY = wy + wall.height * 0.3;
+                    
+                    // Mystical energy glow
+                    const glowGradient = this.ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, 20);
+                    glowGradient.addColorStop(0, `rgba(255, 215, 0, ${alpha * 0.6})`);
+                    glowGradient.addColorStop(0.5, `rgba(255, 165, 0, ${alpha * 0.4})`);
+                    glowGradient.addColorStop(1, `rgba(255, 215, 0, 0)`);
+                    
+                    this.ctx.fillStyle = glowGradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(glowX, glowY, 20, 0, Math.PI * 2);
+                    this.ctx.fill();
+               }
+          });
+     }
+     
+     drawGround() {
+          if (this.level === 1) {
+               // Forest ground - green with leaf litter
+               this.ctx.fillStyle = '#228B22';
+               this.ctx.fillRect(0, this.ground, this.canvas.width, this.canvas.height - this.ground);
+               
+               // Ground pattern - forest floor with leaves and dirt patches
                this.ctx.fillStyle = '#32CD32';
+               for (let i = 0; i < this.canvas.width; i += 60) {
+                    let offset = (i + this.score) % 120;
+                    this.ctx.fillRect(offset, this.ground, 30, 8);
+                    
+                    // Add some leaf litter
+                    this.ctx.fillStyle = '#8B4513';
+                    this.ctx.fillRect(offset + 5, this.ground + 2, 8, 3);
+                    this.ctx.fillStyle = '#32CD32';
+               }
+          } else if (this.level === 2) {
+               // Snowy ground - white snow with ice patches and drifts
+               this.ctx.fillStyle = '#FFFFFF'; // Pure white snow
+               this.ctx.fillRect(0, this.ground, this.canvas.width, this.canvas.height - this.ground);
+               
+               // Ice patches and snow drifts
+               this.ctx.fillStyle = '#E6F3FF'; // Light blue ice
+               for (let i = 0; i < this.canvas.width; i += 100) {
+                    let offset = (i + this.score * 0.5) % 200;
+                    // Ice patches
+                    this.ctx.fillRect(offset, this.ground, 30, 4);
+                    this.ctx.fillRect(offset + 60, this.ground + 2, 25, 3);
+                    
+                    // Snow drifts
+                    this.ctx.fillStyle = '#F8F8FF'; // Slightly off-white snow drifts
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(offset + 40, this.ground - 2, 20, 6, 0, 0, Math.PI);
+                    this.ctx.fill();
+                    
+                    this.ctx.fillStyle = '#E6F3FF'; // Reset to ice color
+               }
+               
+               // Add some frost/sparkle effects
+               this.ctx.fillStyle = 'rgba(173, 216, 230, 0.8)';
+               for (let i = 0; i < this.canvas.width; i += 80) {
+                    let offset = (i + this.score * 0.3) % 160;
+                    this.ctx.beginPath();
+                    this.ctx.arc(offset + 20, this.ground + 5, 1, 0, Math.PI * 2);
+                    this.ctx.arc(offset + 50, this.ground + 3, 0.8, 0, Math.PI * 2);
+                    this.ctx.fill();
+               }
           }
      }
      
@@ -2056,6 +3355,8 @@ class EndlessRunner {
           this.updateMonster();
           this.updateClouds();
           this.updateBackgroundTrees();
+          this.updateBackgroundWalls();
+          this.updateSnowParticles(); // Update snow particles for level 2
           this.updateGameSpeed();
           this.checkCollisions();
           this.updateHitTimestamps(); // Check for hit reset
@@ -2275,16 +3576,28 @@ class EndlessRunner {
      }
      
      draw() {
-          // Clear canvas with forest sky gradient
-          const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-          gradient.addColorStop(0, '#87CEEB');
-          gradient.addColorStop(0.7, '#98FB98');
-          gradient.addColorStop(1, '#228B22');
+          // Clear canvas with level-based background
+          let gradient;
+          if (this.level === 1) {
+               // Forest theme - sky blue to green
+               gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+               gradient.addColorStop(0, '#87CEEB');
+               gradient.addColorStop(0.7, '#98FB98');
+               gradient.addColorStop(1, '#228B22');
+          } else if (this.level === 2) {
+               // Snowy theme - winter sky blue to white
+               gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+               gradient.addColorStop(0, '#E6F3FF'); // Light blue sky
+               gradient.addColorStop(0.6, '#FFFFFF'); // White
+               gradient.addColorStop(1, '#F8F8FF'); // Snow white ground
+          }
           this.ctx.fillStyle = gradient;
           this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
           
-          // Draw sun on the right side
-          this.drawSun();
+          // Draw sun only in level 1
+          if (this.level === 1) {
+               this.drawSun();
+          }
           
           // Hit flash effect
           if (this.hitFlash && this.hitFlash > 0) {
@@ -2293,8 +3606,15 @@ class EndlessRunner {
                this.hitFlash--;
           }
           
-          this.drawClouds();
-          this.drawBackgroundTrees();
+          // Draw clouds only in level 1
+          if (this.level === 1) {
+               this.drawClouds();
+               this.drawBackgroundTrees();
+          } else if (this.level === 2) {
+               this.drawBackgroundWalls();
+               this.drawSnowParticles(); // Draw snow particles for level 2
+          }
+          
           this.drawGround();
           this.drawObstacles();
           this.drawMonster();
