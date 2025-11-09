@@ -56,7 +56,7 @@ class EndlessRunner {
           this.backgroundTrees = [];
           this.backgroundWalls = []; // Temple walls for level 2
           this.particles = []; // For visual effects
-          this.snowParticles = []; // Snow particles for level 2
+          this.torchParticles = []; // Torch particles for level 2
           this.dangerousAreas = []; // Track dangerous obstacles that need platform assistance
           
           this.obstacleTimer = 0;
@@ -91,7 +91,7 @@ class EndlessRunner {
           this.generateClouds();
           this.generateBackgroundTrees();
           this.generateBackgroundWalls();
-          this.generateSnowParticles(); // Generate snow particles for level 2
+          this.generateTorchParticles(); // Generate torch particles for level 2
           this.updateHighScore();
           this.updateAudioButtons(); // Initialize audio button states
           this.gameLoop();
@@ -293,22 +293,22 @@ class EndlessRunner {
      }
      
      playLevel2Music() {
-          // Mountain summit theme - triumphant and challenging
+          // Temple theme - mysterious and ancient
           this.backgroundMusicOscillators = [];
           let noteIndex = 0;
           const melody = [
-               { freq: 659, duration: 250, type: 'triangle' }, // E5 - Ascent
-               { freq: 784, duration: 300, type: 'triangle' }, // G5 - Challenge
-               { freq: 880, duration: 350, type: 'triangle' }, // A5 - Triumph
-               { freq: 988, duration: 200, type: 'triangle' }, // B5 - Peak
-               { freq: 880, duration: 250, type: 'triangle' }, // A5 - Descent
-               { freq: 784, duration: 300, type: 'triangle' }, // G5 - Recovery
-               { freq: 698, duration: 200, type: 'triangle' }, // F5 - Rest
-               { freq: 784, duration: 350, type: 'triangle' }, // G5 - New ascent
-               { freq: 880, duration: 400, type: 'triangle' }, // A5 - Higher peak
-               { freq: 1047, duration: 300, type: 'triangle' }, // C6 - Summit
-               { freq: 988, duration: 250, type: 'triangle' }, // B5 - Achievement
-               { freq: 880, duration: 500, type: 'triangle' }, // A5 - Victory
+               { freq: 392, duration: 350, type: 'triangle' }, // G4 - Mystery
+               { freq: 523, duration: 300, type: 'triangle' }, // C5 - Ancient
+               { freq: 587, duration: 280, type: 'triangle' }, // D5 - Temple
+               { freq: 523, duration: 250, type: 'triangle' }, // C5 - Echo
+               { freq: 440, duration: 320, type: 'triangle' }, // A4 - Secrets
+               { freq: 494, duration: 300, type: 'triangle' }, // B4 - Hidden
+               { freq: 587, duration: 350, type: 'triangle' }, // D5 - Discovery
+               { freq: 659, duration: 280, type: 'triangle' }, // E5 - Revelation
+               { freq: 587, duration: 300, type: 'triangle' }, // D5 - Wisdom
+               { freq: 523, duration: 320, type: 'triangle' }, // C5 - Ancient path
+               { freq: 440, duration: 350, type: 'triangle' }, // A4 - Return
+               { freq: 392, duration: 400, type: 'triangle' }, // G4 - Eternal
           ];
 
           const playNextNote = () => {
@@ -324,7 +324,7 @@ class EndlessRunner {
                oscillator.frequency.setValueAtTime(note.freq, this.audioContext.currentTime);
                oscillator.type = note.type;
 
-               gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+               gainNode.gain.setValueAtTime(0.09, this.audioContext.currentTime);
                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + note.duration / 1000);
 
                oscillator.start(this.audioContext.currentTime);
@@ -339,7 +339,7 @@ class EndlessRunner {
           playNextNote();
 
           // Set up interval for continuous melody
-          this.backgroundMusicInterval = setInterval(playNextNote, 200); // Steady, triumphant rhythm
+          this.backgroundMusicInterval = setInterval(playNextNote, 220); // Mysterious, steady rhythm
      }
      
      setupEventListeners() {
@@ -418,7 +418,7 @@ class EndlessRunner {
           this.particles = [];
           this.backgroundTrees = [];
           this.backgroundWalls = []; // Reset temple walls
-          this.snowParticles = []; // Reset snow particles
+          this.torchParticles = []; // Reset torch particles
           this.dangerousAreas = []; // Reset dangerous areas tracking
           this.player.y = this.ground - 60;
           this.player.velocityY = 0;
@@ -446,7 +446,7 @@ class EndlessRunner {
           this.generateClouds();
           this.generateBackgroundTrees();
           this.generateBackgroundWalls();
-          this.generateSnowParticles(); // Generate snow particles for level 2
+          this.generateTorchParticles(); // Generate torch particles for level 2
           this.spawnMonster(); // Spawn the single monster
           this.startBackgroundMusic(); // Restart background music
      }
@@ -565,43 +565,43 @@ class EndlessRunner {
                          this.consecutiveDangers = 0; // Reset counter
                     }
                } else if (this.level === 2) {
-                    // Snowy theme obstacles - different snow-themed obstacles
+                    // Temple theme obstacles - ancient and mysterious
                     if (obstacleType < 0.25) {
-                         // Snowmen (25%) - soft obstacle, resets counter
+                         // Stone pillars (25%) - solid obstacle, resets counter
                          this.obstacles.push({
                               x: this.canvas.width,
                               y: this.ground - 50,
                               width: 35,
                               height: 50,
-                              type: 'snowman'
+                              type: 'pillar'
                          });
                          this.consecutiveDangers = 0; // Reset counter
                     } else if (obstacleType < 0.4) {
-                         // Ice crystals (15%) - slippery obstacle, resets counter
+                         // Ancient urns (15%) - breakable obstacle, resets counter
                          this.obstacles.push({
                               x: this.canvas.width,
                               y: this.ground - 45,
                               width: 30,
                               height: 45,
-                              type: 'ice_crystal'
+                              type: 'urn'
                          });
                          this.consecutiveDangers = 0; // Reset counter
                     } else if (obstacleType < 0.55) {
-                         // Icicles (15%) - dangerous spikes
-                         this.spawnIcicles();
+                         // Temple spikes (15%) - dangerous spikes
+                         this.spawnTempleSpikes();
                     } else if (obstacleType < 0.65) {
-                         // Floating ice platforms (10%) - helpful, resets counter
-                         this.spawnFloatingIcePlatform();
+                         // Stone platforms (10%) - helpful, resets counter
+                         this.spawnStonePlatform();
                          this.consecutiveDangers = 0; // Reset counter
                     } else if (obstacleType < 0.75) {
-                         // Crevasses (10%) - dangerous gaps
-                         this.spawnCrevasse();
+                         // Temple gaps (10%) - dangerous pits
+                         this.spawnTempleGap();
                     } else if (obstacleType < 0.82) {
-                         // Pine trees (7%) - dangerous
-                         this.spawnPineTree();
+                         // Collapsed columns (7%) - dangerous
+                         this.spawnCollapsedColumn();
                     } else if (obstacleType < 0.87) {
-                         // Ice avalanches (5%) - dangerous
-                         this.spawnIceAvalanche();
+                         // Fire traps (5%) - dangerous
+                         this.spawnTempleTrap();
                     } else {
                          // Coins or power-ups (9%) - helpful, resets counter
                          let powerUpChance = this.level === 2 ? 0.6 : 0.8; // Reduced power-up chance in level 2
@@ -835,6 +835,23 @@ class EndlessRunner {
           
           // Boulders are dangerous
           this.markDangerousArea(this.canvas.width + 22, 45, 'boulder');
+     }
+     
+     spawnCollapsedColumn() {
+          const columnHeight = 45 + Math.random() * 25;
+          this.fallenTrees.push({
+               x: this.canvas.width,
+               y: this.ground - columnHeight,
+               width: 85,
+               height: columnHeight,
+               canSlideUnder: columnHeight > 55, // Can slide under taller columns
+               type: 'column' // Mark as collapsed column
+          });
+          
+          // Mark tall columns that can't be slid under as dangerous
+          if (!columnHeight > 55 || columnHeight >= 60) {
+               this.markDangerousArea(this.canvas.width + 42, 85, 'column');
+          }
      }
      
      spawnFrozenSpikes() {
@@ -1128,50 +1145,97 @@ class EndlessRunner {
      }
      
      generateBackgroundWalls() {
-          for (let i = 0; i < 6; i++) {
+          for (let i = 0; i < 8; i++) {
+               let type;
+               if (i % 3 === 0) {
+                    type = 3; // Statue
+               } else {
+                    type = Math.floor(Math.random() * 3); // 0: pillar, 1: wall, 2: ruins
+               }
                this.backgroundWalls.push({
                     x: Math.random() * this.canvas.width * 2,
                     y: this.ground - 120 - Math.random() * 80,
                     width: Math.random() * 60 + 80,
                     height: Math.random() * 40 + 120,
                     depth: Math.random() * 0.4 + 0.2, // For parallax effect
-                    type: Math.floor(Math.random() * 3) // Different snowy structures (0: igloo, 1: snow mountain, 2: pine forest)
+                    type: type
                });
           }
      }
      
-     generateSnowParticles() {
-          // Generate snow particles for level 2
-          for (let i = 0; i < 50; i++) {
-               this.snowParticles.push({
+     generateTorchParticles() {
+          // Generate torch fire particles for level 2
+          for (let i = 0; i < 30; i++) {
+               this.torchParticles.push({
                     x: Math.random() * this.canvas.width,
-                    y: Math.random() * this.canvas.height,
-                    vx: (Math.random() - 0.5) * 0.5, // Slow horizontal drift
-                    vy: Math.random() * 1 + 0.5, // Falling speed
+                    y: Math.random() * this.canvas.height * 0.6,
+                    vx: (Math.random() - 0.5) * 0.3, // Slight horizontal drift
+                    vy: -Math.random() * 1.5 - 0.5, // Rising speed
                     size: Math.random() * 2 + 1, // Particle size
-                    opacity: Math.random() * 0.5 + 0.3 // Varying opacity
+                    opacity: Math.random() * 0.5 + 0.3, // Varying opacity
+                    life: Math.random() * 60 + 30 // Particle lifespan
                });
           }
      }
      
-     updateSnowParticles() {
-          this.snowParticles.forEach(particle => {
+     updateTorchParticles() {
+          this.torchParticles.forEach(particle => {
                particle.x += particle.vx;
                particle.y += particle.vy;
+               particle.life--;
                
-               // Reset particle when it goes off screen
-               if (particle.y > this.canvas.height) {
-                    particle.y = -10;
+               // Fade out as particle ages
+               particle.opacity = (particle.life / 90) * 0.8;
+               
+               // Reset particle when it dies or goes off screen
+               if (particle.life <= 0 || particle.y < 0) {
+                    particle.y = this.ground - Math.random() * 300;
                     particle.x = Math.random() * this.canvas.width;
+                    particle.life = Math.random() * 60 + 30;
+                    particle.opacity = Math.random() * 0.5 + 0.3;
                }
                if (particle.x < 0) particle.x = this.canvas.width;
                if (particle.x > this.canvas.width) particle.x = 0;
           });
      }
      
-     drawSnowParticles() {
-          this.snowParticles.forEach(particle => {
-               this.ctx.fillStyle = `rgba(173, 216, 230, ${particle.opacity})`;
+     drawTorchParticles() {
+          this.torchParticles.forEach(particle => {
+               // Alternate between orange and yellow for fire effect
+               const color = Math.random() > 0.5 ? '255, 165, 0' : '255, 215, 0';
+               this.ctx.fillStyle = `rgba(${color}, ${particle.opacity})`;
+               this.ctx.beginPath();
+               this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+               this.ctx.fill();
+          });
+     }
+     
+     updateTorchParticles() {
+          this.torchParticles.forEach(particle => {
+               particle.x += particle.vx;
+               particle.y += particle.vy;
+               particle.life--;
+               
+               // Fade out as particle ages
+               particle.opacity = (particle.life / 90) * 0.8;
+               
+               // Reset particle when it dies or goes off screen
+               if (particle.life <= 0 || particle.y < 0) {
+                    particle.y = this.ground - Math.random() * 300;
+                    particle.x = Math.random() * this.canvas.width;
+                    particle.life = Math.random() * 60 + 30;
+                    particle.opacity = Math.random() * 0.5 + 0.3;
+               }
+               if (particle.x < 0) particle.x = this.canvas.width;
+               if (particle.x > this.canvas.width) particle.x = 0;
+          });
+     }
+     
+     drawTorchParticles() {
+          this.torchParticles.forEach(particle => {
+               // Alternate between orange and yellow for fire effect
+               const color = Math.random() > 0.5 ? '255, 165, 0' : '255, 215, 0';
+               this.ctx.fillStyle = `rgba(${color}, ${particle.opacity})`;
                this.ctx.beginPath();
                this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
                this.ctx.fill();
@@ -2106,63 +2170,51 @@ class EndlessRunner {
                          this.ctx.fillRect(gap.x + i * 20, gap.y - 8 + i * 3, 15, 2);
                     }
                } else if (this.level === 2) {
-                    // Crevasse edges with jagged ice formations for visibility
-                    this.ctx.fillStyle = '#00BFFF'; // Deep sky blue
+                    // Temple pit edges with carved stone
+                    this.ctx.fillStyle = '#8B7355'; // Stone edges
                     this.ctx.fillRect(gap.x - 10, gap.y - 20, 10, 20);
                     this.ctx.fillRect(gap.x + gap.width, gap.y - 20, 10, 20);
                     
-                    // Jagged ice edges - bright blue
-                    this.ctx.strokeStyle = '#4169E1'; // Royal blue
-                    this.ctx.lineWidth = 3;
-                    // Left edge
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(gap.x - 10, gap.y - 20);
-                    this.ctx.lineTo(gap.x, gap.y - 15);
-                    this.ctx.lineTo(gap.x - 8, gap.y - 10);
-                    this.ctx.lineTo(gap.x, gap.y - 5);
-                    this.ctx.lineTo(gap.x - 6, gap.y);
-                    this.ctx.stroke();
+                    // Carved stone patterns on edges
+                    this.ctx.strokeStyle = '#6B5745';
+                    this.ctx.lineWidth = 2;
                     
-                    // Right edge
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(gap.x + gap.width + 10, gap.y - 20);
-                    this.ctx.lineTo(gap.x + gap.width, gap.y - 15);
-                    this.ctx.lineTo(gap.x + gap.width + 8, gap.y - 10);
-                    this.ctx.lineTo(gap.x + gap.width, gap.y - 5);
-                    this.ctx.lineTo(gap.x + gap.width + 6, gap.y);
-                    this.ctx.stroke();
-                    
-                    // Wind-blown snow effect - darker for contrast
-                    this.ctx.fillStyle = '#F8F8FF';
-                    for (let i = 0; i < 6; i++) {
-                         this.ctx.fillRect(gap.x + i * 18, gap.y - 14 + i * 3, 12, 4);
+                    // Left edge carvings
+                    for (let i = 0; i < 3; i++) {
+                         this.ctx.strokeRect(gap.x - 8, gap.y - 18 + i * 6, 6, 4);
                     }
                     
-                    // Ice formations at edges - bright blue
-                    this.ctx.fillStyle = '#4169E1'; // Royal blue
-                    this.ctx.fillRect(gap.x - 8, gap.y - 10, 6, 8);
-                    this.ctx.fillRect(gap.x + gap.width + 2, gap.y - 10, 6, 8);
+                    // Right edge carvings
+                    for (let i = 0; i < 3; i++) {
+                         this.ctx.strokeRect(gap.x + gap.width + 2, gap.y - 18 + i * 6, 6, 4);
+                    }
                     
-                    // Icicles hanging from crevasse edges - bright blue with white tips
-                    this.ctx.fillStyle = '#00BFFF';
+                    // Temple decorative borders
+                    this.ctx.fillStyle = '#A0826D';
+                    this.ctx.fillRect(gap.x - 12, gap.y - 22, 12, 3);
+                    this.ctx.fillRect(gap.x + gap.width, gap.y - 22, 12, 3);
+                    
+                    // Ancient symbols along the edges
+                    this.ctx.fillStyle = '#654321';
                     for (let i = 0; i < 4; i++) {
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(gap.x - 6 + i * 3, gap.y - 10);
-                         this.ctx.lineTo(gap.x - 6 + i * 3, gap.y - 18 - i * 4);
-                         this.ctx.lineTo(gap.x - 4 + i * 3, gap.y - 10);
-                         this.ctx.closePath();
-                         this.ctx.fill();
-                         
-                         // White tips for contrast
-                         this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(gap.x - 6 + i * 3, gap.y - 18 - i * 4);
-                         this.ctx.lineTo(gap.x - 4 + i * 3, gap.y - 18 - i * 4);
-                         this.ctx.lineTo(gap.x - 5 + i * 3, gap.y - 22 - i * 4);
-                         this.ctx.closePath();
-                         this.ctx.fill();
-                         this.ctx.fillStyle = '#00BFFF'; // Reset color
+                         this.ctx.fillRect(gap.x - 7, gap.y - 15 + i * 5, 3, 2);
+                         this.ctx.fillRect(gap.x + gap.width + 4, gap.y - 15 + i * 5, 3, 2);
                     }
+                    
+                    // Torch sconces on edges
+                    this.ctx.fillStyle = '#4A3F35';
+                    this.ctx.fillRect(gap.x - 6, gap.y - 12, 4, 8);
+                    this.ctx.fillRect(gap.x + gap.width + 2, gap.y - 12, 4, 8);
+                    
+                    // Flickering torch flames
+                    const flicker = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+                    this.ctx.fillStyle = `rgba(255, 165, 0, ${0.8 * flicker})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(gap.x - 4, gap.y - 13, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.beginPath();
+                    this.ctx.arc(gap.x + gap.width + 4, gap.y - 13, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
                }
           });
           
@@ -2202,116 +2254,78 @@ class EndlessRunner {
                          this.ctx.fillRect(obstacle.x + obstacle.width - 8, obstacle.y + obstacle.height - 3, 8, 3);
                     }
                } else if (this.level === 2) {
-                    if (obstacle.type === 'snowman') {
-                         // Snowman - soft obstacle with bright contrasting colors for visibility
-                         // Base (bottom snowball) - keep white but add dark outline
-                         this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 8, 12, 0, Math.PI * 2);
-                         this.ctx.fill();
+                    if (obstacle.type === 'pillar') {
+                         // Stone pillar - ancient temple column
+                         this.ctx.fillStyle = '#8B7355'; // Sandy stone color
+                         this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
                          
-                         // Dark outline for visibility
-                         this.ctx.strokeStyle = '#FF0000'; // Bright red outline
-                         this.ctx.lineWidth = 3;
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 8, 12, 0, Math.PI * 2);
-                         this.ctx.stroke();
-                         
-                         // Middle snowball
-                         this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 20, 8, 0, Math.PI * 2);
-                         this.ctx.fill();
-                         
-                         // Dark outline
-                         this.ctx.strokeStyle = '#FF0000';
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 20, 8, 0, Math.PI * 2);
-                         this.ctx.stroke();
-                         
-                         // Head (top snowball)
-                         this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 28, 6, 0, Math.PI * 2);
-                         this.ctx.fill();
-                         
-                         // Dark outline
-                         this.ctx.strokeStyle = '#FF0000';
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 28, 6, 0, Math.PI * 2);
-                         this.ctx.stroke();
-                         
-                         // Eyes - bright for contrast
-                         this.ctx.fillStyle = '#000000';
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2 - 2, obstacle.y + obstacle.height - 30, 1, 0, Math.PI * 2);
-                         this.ctx.arc(obstacle.x + obstacle.width/2 + 2, obstacle.y + obstacle.height - 30, 1, 0, Math.PI * 2);
-                         this.ctx.fill();
-                         
-                         // Carrot nose - bright orange
-                         this.ctx.fillStyle = '#FF4500';
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 28);
-                         this.ctx.lineTo(obstacle.x + obstacle.width/2 + 4, obstacle.y + obstacle.height - 27);
-                         this.ctx.lineTo(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 26);
-                         this.ctx.closePath();
-                         this.ctx.fill();
-                         
-                         // Coal buttons - black
-                         this.ctx.fillStyle = '#000000';
-                         this.ctx.beginPath();
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 18, 1.5, 0, Math.PI * 2);
-                         this.ctx.arc(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 14, 1.5, 0, Math.PI * 2);
-                         this.ctx.fill();
-                    } else if (obstacle.type === 'ice_crystal') {
-                         // Ice crystal - geometric obstacle with bright contrasting colors
-                         this.ctx.fillStyle = '#00BFFF'; // Deep sky blue
-                         
-                         // Crystal base
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y);
-                         this.ctx.lineTo(obstacle.x + 5, obstacle.y + obstacle.height);
-                         this.ctx.lineTo(obstacle.x + obstacle.width - 5, obstacle.y + obstacle.height);
-                         this.ctx.closePath();
-                         this.ctx.fill();
-                         
-                         // Dark outline for visibility
-                         this.ctx.strokeStyle = '#000080'; // Dark blue outline
-                         this.ctx.lineWidth = 3;
-                         this.ctx.stroke();
-                         
-                         // Crystal facets - darker blue for contrast
-                         this.ctx.fillStyle = '#4169E1'; // Royal blue
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y + 5);
-                         this.ctx.lineTo(obstacle.x + 12, obstacle.y + obstacle.height - 5);
-                         this.ctx.lineTo(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height - 10);
-                         this.ctx.lineTo(obstacle.x + obstacle.width - 12, obstacle.y + obstacle.height - 5);
-                         this.ctx.closePath();
-                         this.ctx.fill();
-                         
-                         // Dark outline for crystal facets
-                         this.ctx.strokeStyle = '#000080';
+                         // Pillar segments/rings
+                         this.ctx.strokeStyle = '#6B5745';
                          this.ctx.lineWidth = 2;
-                         this.ctx.stroke();
+                         for (let i = 0; i < 3; i++) {
+                              this.ctx.strokeRect(obstacle.x, obstacle.y + i * 15, obstacle.width, 3);
+                         }
                          
-                         // Ice shine effects - bright white with black outline
-                         this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.fillRect(obstacle.x + 8, obstacle.y + 8, obstacle.width - 16, 3);
-                         this.ctx.strokeStyle = '#000000';
+                         // Pillar cap (top)
+                         this.ctx.fillStyle = '#A0826D';
+                         this.ctx.fillRect(obstacle.x - 3, obstacle.y - 5, obstacle.width + 6, 5);
+                         
+                         // Ancient carvings
+                         this.ctx.strokeStyle = '#5C4F42';
                          this.ctx.lineWidth = 1;
-                         this.ctx.strokeRect(obstacle.x + 8, obstacle.y + 8, obstacle.width - 16, 3);
-                         
-                         this.ctx.fillRect(obstacle.x + obstacle.width/2 - 2, obstacle.y + 15, 4, 2);
-                         this.ctx.strokeRect(obstacle.x + obstacle.width/2 - 2, obstacle.y + 15, 4, 2);
-                         
-                         // Crystal sparkle - bright contrasting colors
-                         this.ctx.fillStyle = '#FF0000'; // Red sparkles for visibility
                          for (let i = 0; i < 5; i++) {
                               this.ctx.beginPath();
-                              this.ctx.arc(obstacle.x + 8 + i * 4, obstacle.y + 20 + i * 3, 1.5, 0, Math.PI * 2);
-                              this.ctx.fill();
+                              this.ctx.moveTo(obstacle.x + 5 + i * 6, obstacle.y + 10 + i * 3);
+                              this.ctx.lineTo(obstacle.x + 8 + i * 6, obstacle.y + 13 + i * 3);
+                              this.ctx.stroke();
                          }
+                         
+                         // Weathering/cracks
+                         this.ctx.strokeStyle = '#4A3F35';
+                         this.ctx.lineWidth = 1;
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(obstacle.x + 10, obstacle.y + 8);
+                         this.ctx.lineTo(obstacle.x + 12, obstacle.y + 25);
+                         this.ctx.stroke();
+                    } else if (obstacle.type === 'urn') {
+                         // Ancient urn - pottery vessel
+                         this.ctx.fillStyle = '#8B4513'; // Terracotta color
+                         
+                         // Urn body
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(obstacle.x + obstacle.width/2, obstacle.y);
+                         this.ctx.quadraticCurveTo(obstacle.x, obstacle.y + obstacle.height/3, obstacle.x + 5, obstacle.y + obstacle.height);
+                         this.ctx.lineTo(obstacle.x + obstacle.width - 5, obstacle.y + obstacle.height);
+                         this.ctx.quadraticCurveTo(obstacle.x + obstacle.width, obstacle.y + obstacle.height/3, obstacle.x + obstacle.width/2, obstacle.y);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+                         
+                         // Urn rim/neck
+                         this.ctx.fillStyle = '#A0522D';
+                         this.ctx.fillRect(obstacle.x + 8, obstacle.y, obstacle.width - 16, 8);
+                         
+                         // Ancient patterns
+                         this.ctx.strokeStyle = '#654321';
+                         this.ctx.lineWidth = 1.5;
+                         // Zigzag pattern
+                         for (let i = 0; i < 3; i++) {
+                              this.ctx.beginPath();
+                              this.ctx.moveTo(obstacle.x + 8, obstacle.y + 15 + i * 8);
+                              this.ctx.lineTo(obstacle.x + 12, obstacle.y + 18 + i * 8);
+                              this.ctx.lineTo(obstacle.x + 16, obstacle.y + 15 + i * 8);
+                              this.ctx.lineTo(obstacle.x + 20, obstacle.y + 18 + i * 8);
+                              this.ctx.stroke();
+                         }
+                         
+                         // Handles
+                         this.ctx.strokeStyle = '#8B4513';
+                         this.ctx.lineWidth = 2;
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + 5, obstacle.y + 12, 4, 0, Math.PI);
+                         this.ctx.stroke();
+                         this.ctx.beginPath();
+                         this.ctx.arc(obstacle.x + obstacle.width - 5, obstacle.y + 12, 4, 0, Math.PI);
+                         this.ctx.stroke();
                     }
                }
           });
@@ -2347,63 +2361,39 @@ class EndlessRunner {
                          this.ctx.fillRect(tree.x, tree.y + tree.height - 5, tree.width, 5);
                     }
                } else if (this.level === 2) {
-                    // Pine tree - evergreen with snow, bright green for visibility
-                    // Tree trunk
-                    this.ctx.fillStyle = '#8B4513';
-                    this.ctx.fillRect(tree.x + tree.width * 0.4, tree.y + tree.height - 20, tree.width * 0.2, 20);
+                    // Collapsed stone column
+                    // Column base
+                    this.ctx.fillStyle = '#8B7355';
+                    this.ctx.fillRect(tree.x + tree.width * 0.3, tree.y + tree.height - 25, tree.width * 0.4, 25);
                     
-                    // Tree bark texture
-                    this.ctx.strokeStyle = '#654321';
+                    // Column segments lying down
+                    this.ctx.fillStyle = '#A0826D';
+                    this.ctx.fillRect(tree.x, tree.y + tree.height - 15, tree.width * 0.3, 15);
+                    this.ctx.fillRect(tree.x + tree.width * 0.7, tree.y + tree.height - 12, tree.width * 0.3, 12);
+                    
+                    // Broken edges
+                    this.ctx.strokeStyle = '#6B5745';
                     this.ctx.lineWidth = 2;
-                    for (let i = 0; i < tree.width * 0.2; i += 6) {
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(tree.x + tree.width * 0.4 + i, tree.y + tree.height - 20);
-                         this.ctx.lineTo(tree.x + tree.width * 0.4 + i + 3, tree.y + tree.height);
-                         this.ctx.stroke();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(tree.x + tree.width * 0.3, tree.y + tree.height - 25);
+                    this.ctx.lineTo(tree.x + tree.width * 0.35, tree.y + tree.height - 22);
+                    this.ctx.lineTo(tree.x + tree.width * 0.32, tree.y + tree.height - 20);
+                    this.ctx.stroke();
+                    
+                    // Ancient carvings on fallen column
+                    this.ctx.fillStyle = '#654321';
+                    for (let i = 0; i < 3; i++) {
+                         this.ctx.fillRect(tree.x + 15 + i * 20, tree.y + tree.height - 10, 8, 2);
                     }
                     
-                    // Pine branches - bright green for contrast against snow
-                    this.ctx.fillStyle = '#228B22'; // Forest green
-                    // Bottom layer
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(tree.x + tree.width * 0.5, tree.y + tree.height - 25);
-                    this.ctx.lineTo(tree.x + tree.width * 0.15, tree.y + tree.height - 10);
-                    this.ctx.lineTo(tree.x + tree.width * 0.85, tree.y + tree.height - 10);
-                    this.ctx.closePath();
-                    this.ctx.fill();
+                    // Debris/rubble
+                    this.ctx.fillStyle = '#6B5745';
+                    this.ctx.fillRect(tree.x + 10, tree.y + tree.height - 5, 12, 5);
+                    this.ctx.fillRect(tree.x + tree.width - 18, tree.y + tree.height - 6, 10, 6);
                     
-                    // Middle layer
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(tree.x + tree.width * 0.5, tree.y + tree.height - 35);
-                    this.ctx.lineTo(tree.x + tree.width * 0.2, tree.y + tree.height - 20);
-                    this.ctx.lineTo(tree.x + tree.width * 0.8, tree.y + tree.height - 20);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    
-                    // Top layer
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(tree.x + tree.width * 0.5, tree.y + tree.height - 45);
-                    this.ctx.lineTo(tree.x + tree.width * 0.25, tree.y + tree.height - 30);
-                    this.ctx.lineTo(tree.x + tree.width * 0.75, tree.y + tree.height - 30);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    
-                    // Snow on branches - white for contrast
-                    this.ctx.fillStyle = '#FFFFFF';
-                    this.ctx.fillRect(tree.x + tree.width * 0.18, tree.y + tree.height - 12, tree.width * 0.64, 2);
-                    this.ctx.fillRect(tree.x + tree.width * 0.22, tree.y + tree.height - 22, tree.width * 0.56, 2);
-                    this.ctx.fillRect(tree.x + tree.width * 0.28, tree.y + tree.height - 32, tree.width * 0.44, 2);
-                    
-                    // Dark outline for visibility
-                    this.ctx.strokeStyle = '#000000';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.strokeRect(tree.x + tree.width * 0.18, tree.y + tree.height - 12, tree.width * 0.64, 2);
-                    this.ctx.strokeRect(tree.x + tree.width * 0.22, tree.y + tree.height - 22, tree.width * 0.56, 2);
-                    this.ctx.strokeRect(tree.x + tree.width * 0.28, tree.y + tree.height - 32, tree.width * 0.44, 2);
-                    
-                    // Slide indicator for tall trees
+                    // Slide indicator for tall columns
                     if (tree.canSlideUnder) {
-                         this.ctx.fillStyle = 'rgba(255, 0, 0, 0.7)'; // Red for visibility
+                         this.ctx.fillStyle = 'rgba(255, 165, 0, 0.7)'; // Orange for temple theme
                          this.ctx.fillRect(tree.x, tree.y + tree.height - 5, tree.width, 5);
                     }
                }
@@ -2433,62 +2423,51 @@ class EndlessRunner {
                          this.ctx.fillRect(trap.x + 5, trap.y + trap.height - 5, trap.width - 10, 5);
                     }
                } else if (this.level === 2) {
-                    if (trap.type === 'boulder') {
-                         // Rolling boulder - dark gray with bright outline
-                         this.ctx.fillStyle = '#696969';
-                         this.ctx.beginPath();
-                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
-                         this.ctx.fill();
+                    // Temple traps - fire pits and arrow traps
+                    if (trap.type === 'temple' || !trap.type) {
+                         // Temple pit
+                         this.ctx.fillStyle = '#3F3023';
+                         this.ctx.fillRect(trap.x, trap.y + trap.height - 10, trap.width, 10);
                          
-                         // Bright outline for visibility
-                         this.ctx.strokeStyle = '#FF0000';
-                         this.ctx.lineWidth = 3;
-                         this.ctx.beginPath();
-                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
-                         this.ctx.stroke();
-                         
-                         // Boulder texture
-                         this.ctx.fillStyle = '#808080';
-                         this.ctx.beginPath();
-                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2 - 5, 0, Math.PI * 2);
-                         this.ctx.fill();
-                         
-                         // Boulder highlights - bright for contrast
-                         this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.beginPath();
-                         this.ctx.arc(trap.x + trap.width/2 - 8, trap.y + trap.height/2 - 8, 4, 0, Math.PI * 2);
-                         this.ctx.fill();
-                    } else {
-                         // Avalanche - falling snow chunks with dark outlines and contrasting colors
-                         this.ctx.fillStyle = '#F8F8FF'; // Slightly off-white
-                         this.ctx.beginPath();
-                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
-                         this.ctx.fill();
-                         
-                         // Dark outline for visibility
-                         this.ctx.strokeStyle = '#8B0000'; // Dark red outline
-                         this.ctx.lineWidth = 4;
-                         this.ctx.beginPath();
-                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2, 0, Math.PI * 2);
-                         this.ctx.stroke();
-                         
-                         // Snow texture with darker accents
-                         this.ctx.fillStyle = '#E6F3FF'; // Light blue
-                         this.ctx.beginPath();
-                         this.ctx.arc(trap.x + trap.width/2, trap.y + trap.height/2, trap.width/2 - 5, 0, Math.PI * 2);
-                         this.ctx.fill();
-                         
-                         // Ice chunks in snow - bright contrasting colors
-                         this.ctx.fillStyle = '#FF0000'; // Red ice chunks for visibility
-                         for (let i = 0; i < 3; i++) {
+                         if (trap.active) {
+                              // Fire pit - flames
+                              const flameHeight = 20 + Math.sin(trap.frame * 0.5) * 5;
+                              
+                              // Red-orange flames
+                              this.ctx.fillStyle = '#FF4500';
                               this.ctx.beginPath();
-                              this.ctx.arc(trap.x + 10 + i * 10, trap.y + 15 + i * 5, 3, 0, Math.PI * 2);
+                              this.ctx.moveTo(trap.x + 10, trap.y + trap.height);
+                              this.ctx.lineTo(trap.x + 15, trap.y + trap.height - flameHeight);
+                              this.ctx.lineTo(trap.x + 20, trap.y + trap.height);
+                              this.ctx.closePath();
                               this.ctx.fill();
                               
-                              // Add black outline to ice chunks
-                              this.ctx.strokeStyle = '#000000';
+                              this.ctx.fillStyle = '#FFD700';
+                              this.ctx.beginPath();
+                              this.ctx.moveTo(trap.x + 30, trap.y + trap.height);
+                              this.ctx.lineTo(trap.x + 35, trap.y + trap.height - flameHeight + 3);
+                              this.ctx.lineTo(trap.x + 40, trap.y + trap.height);
+                              this.ctx.closePath();
+                              this.ctx.fill();
+                              
+                              this.ctx.fillStyle = '#FF8C00';
+                              this.ctx.beginPath();
+                              this.ctx.moveTo(trap.x + 50, trap.y + trap.height);
+                              this.ctx.lineTo(trap.x + 55, trap.y + trap.height - flameHeight + 2);
+                              this.ctx.lineTo(trap.x + 60, trap.y + trap.height);
+                              this.ctx.closePath();
+                              this.ctx.fill();
+                         } else {
+                              // Inactive pit - covered
+                              this.ctx.fillStyle = '#8B7355';
+                              this.ctx.fillRect(trap.x + 5, trap.y + trap.height - 5, trap.width - 10, 5);
+                              
+                              // Ancient symbols on cover
+                              this.ctx.strokeStyle = '#654321';
                               this.ctx.lineWidth = 1;
-                              this.ctx.stroke();
+                              for (let i = 0; i < 3; i++) {
+                                   this.ctx.strokeRect(trap.x + 15 + i * 15, trap.y + trap.height - 3, 8, 2);
+                              }
                          }
                     }
                }
@@ -2560,34 +2539,34 @@ class EndlessRunner {
                          this.ctx.fill();
                     }
                } else if (this.level === 2) {
-                    // Icicles - hanging ice spikes with bright blue colors for visibility
-                    this.ctx.fillStyle = '#00BFFF'; // Deep sky blue base
-                    // Ice base
+                    // Temple spikes - metal/stone spikes with glowing runes
+                    this.ctx.fillStyle = '#4A3F35'; // Dark bronze/metal color
+                    // Spike base
                     this.ctx.fillRect(spike.x + 3, spike.y + spike.height - 10, spike.width - 6, 10);
                     
-                    // Icicles - bright blue with glow
-                    this.ctx.strokeStyle = '#4169E1'; // Royal blue
+                    // Metal spikes
+                    this.ctx.strokeStyle = '#6B5745';
                     this.ctx.lineWidth = 4;
-                    this.ctx.shadowColor = '#4169E1';
-                    this.ctx.shadowBlur = 6;
+                    this.ctx.shadowColor = '#FF4500';
+                    this.ctx.shadowBlur = 8;
                     for (let i = 0; i < spike.width; i += 10) {
                          this.ctx.beginPath();
                          this.ctx.moveTo(spike.x + i + 5, spike.y + spike.height - 10);
                          this.ctx.lineTo(spike.x + i + 5, spike.y + spike.height - 35);
                          this.ctx.stroke();
                          
-                         // Icicle tips with bright blue shine
-                         this.ctx.fillStyle = '#00BFFF';
+                         // Spike tips - sharp and dangerous looking
+                         this.ctx.fillStyle = '#8B7355';
                          this.ctx.beginPath();
                          this.ctx.moveTo(spike.x + i + 3, spike.y + spike.height - 35);
-                         this.ctx.lineTo(spike.x + i + 5, spike.y + spike.height - 40);
+                         this.ctx.lineTo(spike.x + i + 5, spike.y + spike.height - 42);
                          this.ctx.lineTo(spike.x + i + 7, spike.y + spike.height - 35);
                          this.ctx.closePath();
                          this.ctx.fill();
                          
-                         // Ice reflection - bright white
-                         this.ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-                         this.ctx.fillRect(spike.x + i + 4, spike.y + spike.height - 25, 2, 10);
+                         // Glowing runes on spikes
+                         this.ctx.fillStyle = `rgba(255, 69, 0, ${0.6 + Math.sin(Date.now() * 0.01 + i) * 0.4})`;
+                         this.ctx.fillRect(spike.x + i + 4, spike.y + spike.height - 25, 2, 8);
                     }
                     this.ctx.shadowBlur = 0; // Reset shadow
                }
@@ -2637,44 +2616,55 @@ class EndlessRunner {
                     this.ctx.fillStyle = platform.strategic ? '#00FF00' : '#32CD32'; // Brighter green for strategic
                     this.ctx.fillRect(platform.x, platform.y, platform.width, 3);
                } else if (this.level === 2) {
-                    // Floating ice platform - bright blue with glowing effect
-                    this.ctx.fillStyle = platform.strategic ? '#00BFFF' : '#4169E1'; // Deep sky blue for strategic, royal blue for normal
+                    // Stone temple platform - ancient moving platforms
+                    this.ctx.fillStyle = platform.strategic ? '#A0826D' : '#8B7355'; // Lighter stone for strategic
                     this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
                     
-                    // Bright outline for contrast
-                    this.ctx.strokeStyle = '#FFFFFF';
+                    // Carved stone border
+                    this.ctx.strokeStyle = '#6B5745';
                     this.ctx.lineWidth = 2;
                     this.ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
                     
                     // Reset shadow
                     this.ctx.shadowBlur = 0;
                     
-                    // Floating ice pattern - glowing blue
-                    this.ctx.strokeStyle = '#87CEEB';
+                    // Ancient stone pattern
+                    this.ctx.strokeStyle = '#5C4F42';
                     this.ctx.lineWidth = 1;
                     for (let i = 0; i < platform.width; i += 25) {
                          this.ctx.strokeRect(platform.x + i, platform.y, 25, platform.height);
                     }
                     
-                    // Ice texture with frost - bright white with glow effect
-                    this.ctx.fillStyle = platform.strategic ? '#F0F8FF' : '#E6F3FF'; // Lighter blue instead of white
-                    this.ctx.fillRect(platform.x, platform.y, platform.width, 5);
+                    // Temple carvings on top - with special color for strategic platforms
+                    this.ctx.fillStyle = platform.strategic ? '#D4AF37' : '#A08860'; // Gold for strategic, tan for normal
+                    this.ctx.fillRect(platform.x + 4, platform.y + 2, platform.width - 8, 4);
                     
-                    // Ice shine/reflection - bright white with glow effect
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-                    this.ctx.fillRect(platform.x + 4, platform.y + 3, platform.width - 8, 2);
+                    // Ancient symbols
+                    this.ctx.fillStyle = '#654321';
+                    for (let i = 0; i < Math.floor(platform.width / 20); i++) {
+                         this.ctx.fillRect(platform.x + 8 + i * 20, platform.y + 4, 6, 2);
+                    }
                     
-                    // Add dark outline to shine for contrast
-                    this.ctx.strokeStyle = '#000080';
-                    this.ctx.lineWidth = 1;
-                    this.ctx.strokeRect(platform.x + 4, platform.y + 3, platform.width - 8, 2);
+                    // Glowing runes on platform edge - pulsing effect
+                    const glowIntensity = 0.4 + Math.sin(Date.now() * 0.005) * 0.3;
+                    this.ctx.fillStyle = platform.strategic ? 
+                         `rgba(212, 175, 55, ${glowIntensity})` : // Gold glow for strategic
+                         `rgba(255, 140, 0, ${glowIntensity})`; // Orange glow for normal
+                    this.ctx.fillRect(platform.x + 2, platform.y + platform.height - 3, platform.width - 4, 2);
                     
-                    // Floating ice particles effect
-                    this.ctx.fillStyle = 'rgba(173, 216, 230, 0.6)';
-                    for (let i = 0; i < 6; i++) {
-                         this.ctx.beginPath();
-                         this.ctx.arc(platform.x + 10 + i * 12, platform.y - 3, 1.5, 0, Math.PI * 2);
-                         this.ctx.fill();
+                    // Mystical particles around strategic platforms
+                    if (platform.strategic) {
+                         for (let i = 0; i < 5; i++) {
+                              this.ctx.fillStyle = `rgba(212, 175, 55, ${Math.random() * 0.6 + 0.2})`;
+                              this.ctx.beginPath();
+                              this.ctx.arc(
+                                   platform.x + 10 + i * (platform.width / 6), 
+                                   platform.y - 3 - Math.sin(Date.now() * 0.01 + i) * 3, 
+                                   1.5, 
+                                   0, Math.PI * 2
+                              );
+                              this.ctx.fill();
+                         }
                     }
                }
                
@@ -2863,21 +2853,12 @@ class EndlessRunner {
           this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
           this.ctx.fillRect(mx - 4, this.ground - 3, monster.width + 8, 6);
           
-          // Monster body - main torso with irregular shape (scaled up)
-          if (this.level === 1) {
-               // Temple monster - red/dark
-               if (isDeadly) {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#1A0000' : '#2D1B1B';
-               } else {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#4A1515' : '#7F2020';
-               }
-          } else if (this.level === 2) {
-               // Snow monster - blue/ice
-               if (isDeadly) {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#001122' : '#1E3A5F';
-               } else {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#002244' : '#4169E1';
-               }
+          // Monster body - always use level 1 appearance
+          // Temple monster - red/dark
+          if (isDeadly) {
+               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#1A0000' : '#2D1B1B';
+          } else {
+               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#4A1515' : '#7F2020';
           }
           
           // Main body (irregular shape) - scaled proportionally
@@ -2891,21 +2872,11 @@ class EndlessRunner {
           this.ctx.closePath();
           this.ctx.fill();
           
-          // Monster head (larger and more menacing) - side profile
-          if (this.level === 1) {
-               // Temple monster head
-               if (isDeadly) {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#000000' : '#1A0A0A';
-               } else {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#2D0000' : '#450A0A';
-               }
-          } else if (this.level === 2) {
-               // Snow monster head - icy blue
-               if (isDeadly) {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#000011' : '#0F1419';
-               } else {
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#001133' : '#1E2A3D';
-               }
+          // Monster head (larger and more menacing) - always use level 1 appearance
+          if (isDeadly) {
+               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#000000' : '#1A0A0A';
+          } else {
+               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#2D0000' : '#450A0A';
           }
           
           // Head shape (skull-like side profile) - scaled up
@@ -2913,8 +2884,8 @@ class EndlessRunner {
           this.ctx.ellipse(mx + 32, my + 13 + bounce + breathe, 28, 19, 0, 0, Math.PI * 2);
           this.ctx.fill();
           
-          // Monster horns/spikes (facing right) - scaled up
-          this.ctx.fillStyle = this.level === 1 ? (isDeadly ? '#800000' : '#600000') : (isDeadly ? '#0088AA' : '#00AACC');
+          // Monster horns/spikes (facing right) - always use level 1 appearance
+          this.ctx.fillStyle = isDeadly ? '#800000' : '#600000';
           this.ctx.beginPath();
           this.ctx.moveTo(mx + 20, my + 3 + bounce);
           this.ctx.lineTo(mx + 24, my - 8 + bounce);
@@ -2935,8 +2906,8 @@ class EndlessRunner {
           this.ctx.ellipse(mx + 50, my + 18 + bounce + breathe, 12, 8, 0, 0, Math.PI * 2);
           this.ctx.fill();
           
-          // Monster arms/claws - scaled up
-          this.ctx.fillStyle = this.level === 1 ? (isDeadly ? '#2D0505' : '#4A1010') : (isDeadly ? '#0A1A2A' : '#1E3A5F');
+          // Monster arms/claws - always use level 1 appearance
+          this.ctx.fillStyle = isDeadly ? '#2D0505' : '#4A1010';
           const armSwing = Math.sin(monster.frame * 1.2) * 5;
           
           // Left arm
@@ -2958,8 +2929,8 @@ class EndlessRunner {
           this.ctx.fillRect(mx + 44 - armSwing, my + 61 + bounce, 5, 7);
           this.ctx.fillRect(mx + 38 - armSwing, my + 59 + bounce, 5, 9);
           
-          // Monster legs - scaled up
-          this.ctx.fillStyle = this.level === 1 ? (isDeadly ? '#1A0505' : '#3D0A0A') : (isDeadly ? '#0A1419' : '#1E2A3D');
+          // Monster legs - always use level 1 appearance
+          this.ctx.fillStyle = isDeadly ? '#1A0505' : '#3D0A0A';
           this.ctx.beginPath();
           this.ctx.roundRect(mx + 14, my + 67 + bounce, 13, 24, 3);
           this.ctx.fill();
@@ -2967,31 +2938,17 @@ class EndlessRunner {
           this.ctx.roundRect(mx + 33, my + 67 + bounce, 13, 24, 3);
           this.ctx.fill();
           
-          // Eye - glowing effect, single eye visible from side, scaled up
-          if (this.level === 1) {
-               if (isDeadly) {
-                    // Deadly monster - bright glowing red eye
-                    this.ctx.fillStyle = '#FF0000';
-                    this.ctx.shadowColor = '#FF0000';
-                    this.ctx.shadowBlur = 15;
-               } else {
-                    // Normal monster - yellow/orange eye
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
-                    this.ctx.shadowColor = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
-                    this.ctx.shadowBlur = 8;
-               }
-          } else if (this.level === 2) {
-               if (isDeadly) {
-                    // Deadly monster - bright glowing icy blue eye
-                    this.ctx.fillStyle = '#00BFFF';
-                    this.ctx.shadowColor = '#00BFFF';
-                    this.ctx.shadowBlur = 15;
-               } else {
-                    // Normal monster - icy blue eye
-                    this.ctx.fillStyle = this.slowdownTimer > 0 ? '#87CEEB' : '#4682B4';
-                    this.ctx.shadowColor = this.slowdownTimer > 0 ? '#87CEEB' : '#4682B4';
-                    this.ctx.shadowBlur = 8;
-               }
+          // Eye - always use level 1 appearance
+          if (isDeadly) {
+               // Deadly monster - bright glowing red eye
+               this.ctx.fillStyle = '#FF0000';
+               this.ctx.shadowColor = '#FF0000';
+               this.ctx.shadowBlur = 15;
+          } else {
+               // Normal monster - yellow/orange eye
+               this.ctx.fillStyle = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
+               this.ctx.shadowColor = this.slowdownTimer > 0 ? '#FFD700' : '#FFA500';
+               this.ctx.shadowBlur = 8;
           }
           
           // Single visible eye (side profile) - bigger and more menacing
@@ -3142,155 +3099,317 @@ class EndlessRunner {
      }
      
      drawBackgroundWalls() {
+          // Draw continuous old white temple wall behind the player
+          if (this.level === 2) {
+               // Main wall background
+               this.ctx.fillStyle = '#F5F5DC'; // Base beige white
+               this.ctx.fillRect(0, 0, this.canvas.width, this.ground);
+
+               // Block pattern variables
+               const blockWidth = 60;
+               const blockHeight = 40;
+               const offsetX = (this.score * this.gameSpeed * 0.05) % blockWidth; // Parallax effect
+
+               // Draw rows of stone blocks with color variation, cracks, stains, and chipped edges
+               for (let y = 0; y < this.ground; y += blockHeight) {
+                    for (let x = -blockWidth; x < this.canvas.width + blockWidth; x += blockWidth) {
+                         const drawX = x - offsetX;
+                         // Deterministic pseudo-random seed based on block position
+                         const seed = ((x * 73856093) ^ (y * 19349663)) & 0xffffffff;
+                         function rand(n) { return ((Math.sin(seed + n) + 1) * 0.5); }
+
+                         // Subtle color variation for each block
+                         const shade = 230 + Math.floor(Math.sin(x * 0.13 + y * 0.21) * 10) + Math.floor(rand(1) * 8);
+                         const blockColor = `rgb(${shade},${shade},${shade - 10})`;
+                         this.ctx.fillStyle = blockColor;
+                         // Slightly round some corners and add chipped edges
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(drawX + 4, y + 2 + rand(2) * 2);
+                         this.ctx.lineTo(drawX + blockWidth - 6, y + 2 + rand(3) * 2);
+                         this.ctx.lineTo(drawX + blockWidth - 2, y + blockHeight - 6 - rand(4) * 3);
+                         this.ctx.lineTo(drawX + 2, y + blockHeight - 4 - rand(5) * 2);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+
+                         // Block shadow for depth
+                         this.ctx.save();
+                         this.ctx.globalAlpha = 0.13;
+                         this.ctx.fillStyle = '#bdbdbd';
+                         this.ctx.fillRect(drawX + blockWidth - 8, y + 8, 8, blockHeight - 16);
+                         this.ctx.restore();
+
+                         // Grout lines (uneven, faded)
+                         this.ctx.strokeStyle = rand(6) > 0.2 ? '#D3D3D3' : '#B0B0B0';
+                         this.ctx.lineWidth = rand(7) > 0.7 ? 1 : 2;
+                         this.ctx.strokeRect(drawX, y, blockWidth, blockHeight);
+
+                         // ...existing code...
+
+                         // Faded stains/moss
+                         if (rand(15) > 0.85) {
+                              this.ctx.save();
+                              this.ctx.globalAlpha = 0.12 + rand(16) * 0.08;
+                              this.ctx.fillStyle = rand(17) > 0.5 ? '#b2b2a3' : '#c2c2b0';
+                              this.ctx.beginPath();
+                              this.ctx.arc(drawX + blockWidth * rand(18), y + blockHeight * rand(19), 10 + rand(20) * 8, 0, Math.PI * 2);
+                              this.ctx.fill();
+                              this.ctx.restore();
+                         }
+
+                         // Occasional hieroglyphics/carvings
+                         if ((x + y) % 180 === 0 && rand(21) > 0.5) {
+                              this.ctx.fillStyle = '#C0C0C0';
+                              this.ctx.fillRect(drawX + 15, y + 12, 8, 3);
+                              this.ctx.fillRect(drawX + 25, y + 10, 3, 8);
+                              this.ctx.fillRect(drawX + 18, y + 22, 12, 2);
+                         }
+
+                         // Add more torches, spaced and varied in height
+                         if ((x + y) % 240 === 0 && rand(26) > 0.3) {
+                              const torchX = drawX + blockWidth / 2;
+                              const torchY = y + blockHeight * (0.3 + rand(27) * 0.4);
+                              // Torch holder
+                              this.ctx.fillStyle = 'rgba(74, 63, 53, 0.7)';
+                              this.ctx.fillRect(torchX - 4, torchY - 8, 8, 16);
+                              this.ctx.fillRect(torchX - 6, torchY + 8, 12, 3);
+                              // Torch flame with flicker
+                              const flicker = 0.7 + Math.sin(Date.now() * 0.02 + x * 0.1 + y * 0.2) * 0.3;
+                              this.ctx.save();
+                              this.ctx.globalAlpha = 0.7;
+                              this.ctx.fillStyle = `rgba(255, 140, 0, 0.7)`;
+                              this.ctx.beginPath();
+                              this.ctx.arc(torchX, torchY - 5, 5 * flicker, 0, Math.PI * 2);
+                              this.ctx.fill();
+                              // Inner flame
+                              this.ctx.globalAlpha = 0.5;
+                              this.ctx.fillStyle = `rgba(255, 215, 0, 0.7)`;
+                              this.ctx.beginPath();
+                              this.ctx.arc(torchX, torchY - 6, 3 * flicker, 0, Math.PI * 2);
+                              this.ctx.fill();
+                              // Flame glow on wall
+                              this.ctx.globalAlpha = 0.25;
+                              this.ctx.fillStyle = `rgba(255, 200, 0, 0.5)`;
+                              this.ctx.beginPath();
+                              this.ctx.arc(torchX, torchY - 5, 18 * flicker, 0, Math.PI * 2);
+                              this.ctx.fill();
+                              // Wall illumination (soft radial gradient)
+                              const grad = this.ctx.createRadialGradient(torchX, torchY - 5, 0, torchX, torchY - 5, 40);
+                              grad.addColorStop(0, 'rgba(255, 220, 120, 0.25)');
+                              grad.addColorStop(0.5, 'rgba(255, 220, 120, 0.12)');
+                              grad.addColorStop(1, 'rgba(255, 220, 120, 0)');
+                              this.ctx.globalAlpha = 1.0;
+                              this.ctx.fillStyle = grad;
+                              this.ctx.beginPath();
+                              this.ctx.arc(torchX, torchY - 5, 40, 0, Math.PI * 2);
+                              this.ctx.fill();
+                              this.ctx.restore();
+                         }
+                    }
+               }
+          }
+          
           this.backgroundWalls.forEach(wall => {
                const alpha = wall.depth * 0.7 + 0.3; // Closer walls are more opaque
                const wx = wall.x;
                const wy = wall.y;
-               
-               // Create multiple snowy structures instead of temple walls
+
+               // Only draw temple elements for level 1 (forest theme)
+               if (this.level === 1) {
+                    // Skip - no walls needed for forest level
+                    return;
+               }
+
+               // For level 2, we now use the continuous wall background above
+               // Add big temple statues for atmosphere
+               if (wall.type === 3 && this.level === 2) {
+                    // Draw a large, iconic temple statue (seated figure with defined features)
+                    const statueW = wall.width * 2.2;
+                    const statueH = wall.height * 3.2;
+                    // Parallax factor for statues (move slower than wall)
+                    const parallax = 0.5 + wall.depth * 0.5;
+                    let sx = wx - wall.width * 0.6 - this.score * parallax * 0.7;
+                    // Position base of statue slightly below the floor
+                    let sy = this.ground - statueH + 30;
+                    if (sy < 0) sy = 10;
+                    if (sx < 0) sx = 10;
+                    if (sx + statueW > this.canvas.width) sx = this.canvas.width - statueW - 10;
+                    this.ctx.save();
+                    this.ctx.globalAlpha = Math.max(0.92, alpha * 1.1);
+                    // Statue base (ancient blue-gray stone)
+                    this.ctx.fillStyle = 'rgba(90,110,130,1)';
+                    this.ctx.fillRect(sx, sy + statueH - 38, statueW, 38);
+                    // Statue legs (seated)
+                    this.ctx.fillStyle = 'rgba(120,140,170,1)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(sx + statueW/2 - 32, sy + statueH - 60, 28, 22, Math.PI/12, 0, Math.PI * 2);
+                    this.ctx.ellipse(sx + statueW/2 + 32, sy + statueH - 60, 28, 22, -Math.PI/12, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Statue torso
+                    this.ctx.fillStyle = 'rgba(110,130,160,1)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(sx + statueW/2, sy + statueH/2 + 18, statueW/2.3, statueH/2.7, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Statue arms (resting on knees)
+                    this.ctx.fillStyle = 'rgba(120,140,170,1)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(sx + statueW/2 - 38, sy + statueH - 80, 14, 38, Math.PI/8, 0, Math.PI * 2);
+                    this.ctx.ellipse(sx + statueW/2 + 38, sy + statueH - 80, 14, 38, -Math.PI/8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Statue hands
+                    this.ctx.fillStyle = 'rgba(170,170,200,1)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(sx + statueW/2 - 38, sy + statueH - 60, 10, 0, Math.PI * 2);
+                    this.ctx.arc(sx + statueW/2 + 38, sy + statueH - 60, 10, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Statue head
+                    this.ctx.fillStyle = 'rgba(110,130,160,1)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(sx + statueW/2, sy + statueH/2 - 52, statueW/5.5, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Headdress (gold accent)
+                    this.ctx.fillStyle = 'rgba(212,175,55,1)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(sx + statueW/2, sy + statueH/2 - 72, statueW/6, 18, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Face details
+                    this.ctx.fillStyle = 'rgba(200,180,120,1)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(sx + statueW/2, sy + statueH/2 - 52, statueW/18, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Eyes
+                    this.ctx.fillStyle = 'rgba(40,40,60,1)';
+                    this.ctx.beginPath();
+                    this.ctx.arc(sx + statueW/2 - 12, sy + statueH/2 - 54, 3, 0, Math.PI * 2);
+                    this.ctx.arc(sx + statueW/2 + 12, sy + statueH/2 - 54, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Subtle lighting accent (soft glow)
+                    const lx = sx + statueW/2;
+                    const ly = sy + statueH/2;
+                    const grad = this.ctx.createRadialGradient(lx, ly, 0, lx, ly, statueW/1.5);
+                    grad.addColorStop(0, 'rgba(255,255,220,0.18)');
+                    grad.addColorStop(0.7, 'rgba(255,255,220,0.08)');
+                    grad.addColorStop(1, 'rgba(255,255,220,0)');
+                    this.ctx.globalAlpha = 0.7;
+                    this.ctx.fillStyle = grad;
+                    this.ctx.beginPath();
+                    this.ctx.arc(lx, ly, statueW/1.5, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    // Faint engravings on base
+                    this.ctx.globalAlpha = 0.5;
+                    this.ctx.fillStyle = 'rgba(120,110,90,0.9)';
+                    this.ctx.font = 'bold 18px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('𓃰', sx + statueW/2, sy + statueH - 18);
+                    this.ctx.restore();
+               }
+
+               // ...existing decorative elements...
                switch(wall.type) {
-                    case 0: // Igloo
-                         // Igloo dome
-                         this.ctx.fillStyle = `rgba(240, 248, 255, ${alpha})`;
-                         this.ctx.beginPath();
-                         this.ctx.arc(wx + wall.width/2, wy + wall.height - 20, wall.width/2, Math.PI, 0);
-                         this.ctx.fill();
-                         
-                         // Igloo entrance
-                         this.ctx.fillStyle = `rgba(176, 224, 230, ${alpha * 0.8})`;
-                         this.ctx.fillRect(wx + wall.width/2 - 15, wy + wall.height - 40, 30, 20);
-                         
-                         // Igloo blocks pattern
-                         this.ctx.strokeStyle = `rgba(173, 216, 230, ${alpha})`;
+                    case 0: // Stone pillar decoration on wall
+                         // Decorative vertical pillar relief on the wall
+                         this.ctx.fillStyle = `rgba(220, 220, 210, ${alpha * 0.3})`;
+                         this.ctx.fillRect(wx + wall.width * 0.4, wy, wall.width * 0.2, wall.height);
+                         // Pillar segments
+                         this.ctx.strokeStyle = `rgba(200, 200, 190, ${alpha * 0.4})`;
                          this.ctx.lineWidth = 1;
-                         for (let i = 0; i < 3; i++) {
-                              this.ctx.beginPath();
-                              this.ctx.arc(wx + wall.width/2, wy + wall.height - 20 - i * 15, wall.width/2 - i * 10, Math.PI, 0);
-                              this.ctx.stroke();
+                         for (let i = 0; i < 5; i++) {
+                              this.ctx.strokeRect(wx + wall.width * 0.4, wy + i * (wall.height / 5), wall.width * 0.2, 2);
                          }
-                         
-                         // Snow on top
-                         this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                         this.ctx.fillRect(wx + wall.width/2 - 20, wy + wall.height - 50, 40, 10);
                          break;
-                         
-                    case 1: // Snow-covered mountain
-                         // Mountain base
-                         this.ctx.fillStyle = `rgba(169, 169, 169, ${alpha})`;
+                    case 1: // Carved panel on wall
+                         // Decorative panel
+                         this.ctx.fillStyle = `rgba(230, 230, 220, ${alpha * 0.2})`;
+                         this.ctx.fillRect(wx + 10, wy + 20, wall.width - 20, wall.height - 40);
+                         // Panel border
+                         this.ctx.strokeStyle = `rgba(200, 200, 190, ${alpha * 0.4})`;
+                         this.ctx.lineWidth = 2;
+                         this.ctx.strokeRect(wx + 10, wy + 20, wall.width - 20, wall.height - 40);
+                         // Hieroglyphic symbols
+                         this.ctx.fillStyle = `rgba(180, 180, 170, ${alpha * 0.5})`;
+                         for (let i = 0; i < 4; i++) {
+                              const symbolX = wx + 25 + (i % 2) * 30;
+                              const symbolY = wy + 40 + Math.floor(i / 2) * 30;
+                              // Simple carved symbols
+                              this.ctx.fillRect(symbolX, symbolY, 8, 2);
+                              this.ctx.fillRect(symbolX + 10, symbolY + 5, 2, 8);
+                         }
+                         break;
+                    case 2: // Decorative alcove on wall
+                         // Alcove depression
+                         this.ctx.fillStyle = `rgba(210, 210, 200, ${alpha * 0.3})`;
                          this.ctx.beginPath();
-                         this.ctx.moveTo(wx, wy + wall.height);
-                         this.ctx.lineTo(wx + wall.width/2, wy + wall.height - 60);
-                         this.ctx.lineTo(wx + wall.width, wy + wall.height);
-                         this.ctx.closePath();
+                         this.ctx.arc(wx + wall.width/2, wy + wall.height/2 + 20, wall.width * 0.3, 0, Math.PI * 2);
                          this.ctx.fill();
-                         
-                         // Snow cap
-                         this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(wx + wall.width/2 - 30, wy + wall.height - 60);
-                         this.ctx.lineTo(wx + wall.width/2, wy + wall.height - 80);
-                         this.ctx.lineTo(wx + wall.width/2 + 30, wy + wall.height - 60);
-                         this.ctx.closePath();
-                         this.ctx.fill();
-                         
-                         // Mountain texture
-                         this.ctx.strokeStyle = `rgba(105, 105, 105, ${alpha})`;
+                         // Alcove border
+                         this.ctx.strokeStyle = `rgba(190, 190, 180, ${alpha * 0.4})`;
                          this.ctx.lineWidth = 2;
                          this.ctx.beginPath();
-                         this.ctx.moveTo(wx + 20, wy + wall.height - 20);
-                         this.ctx.lineTo(wx + wall.width/2, wy + wall.height - 70);
-                         this.ctx.lineTo(wx + wall.width - 20, wy + wall.height - 25);
+                         this.ctx.arc(wx + wall.width/2, wy + wall.height/2 + 20, wall.width * 0.3, 0, Math.PI * 2);
                          this.ctx.stroke();
-                         
-                         // Ice crystals on mountain
-                         this.ctx.fillStyle = `rgba(173, 216, 230, ${alpha * 0.7})`;
-                         for (let i = 0; i < 5; i++) {
-                              this.ctx.beginPath();
-                              this.ctx.arc(wx + 30 + i * 15, wy + wall.height - 40 - i * 5, 2, 0, Math.PI * 2);
-                              this.ctx.fill();
-                         }
-                         break;
-                         
-                    case 2: // Pine forest background
-                         // Multiple pine trees
-                         for (let i = 0; i < 3; i++) {
-                              const treeX = wx + 20 + i * 25;
-                              const treeY = wy + wall.height - 40;
-                              
-                              // Tree trunk
-                              this.ctx.fillStyle = `rgba(101, 67, 33, ${alpha})`;
-                              this.ctx.fillRect(treeX - 2, treeY, 4, 30);
-                              
-                              // Pine branches
-                              this.ctx.fillStyle = `rgba(34, 139, 34, ${alpha})`;
-                              this.ctx.beginPath();
-                              this.ctx.moveTo(treeX, treeY - 5);
-                              this.ctx.lineTo(treeX - 8, treeY + 5);
-                              this.ctx.lineTo(treeX + 8, treeY + 5);
-                              this.ctx.closePath();
-                              this.ctx.fill();
-                              
-                              this.ctx.beginPath();
-                              this.ctx.moveTo(treeX, treeY - 15);
-                              this.ctx.lineTo(treeX - 6, treeY - 5);
-                              this.ctx.lineTo(treeX + 6, treeY - 5);
-                              this.ctx.closePath();
-                              this.ctx.fill();
-                              
-                              // Snow on branches
-                              this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                              this.ctx.fillRect(treeX - 5, treeY - 2, 10, 2);
-                              this.ctx.fillRect(treeX - 4, treeY - 12, 8, 2);
-                         }
                          break;
                }
                
                // Add torches on temple structures for atmosphere
                // Use deterministic decision based on wall properties to prevent random appearance/disappearance
                const torchPresenceSeed = Math.sin(wall.depth * 50 + wall.type * 25 + wall.width * 0.02) * 1000;
-               if (Math.abs(torchPresenceSeed) % 1000 < 400) { // 40% chance for torches, but deterministic
+               if (Math.abs(torchPresenceSeed) % 1000 < 500) { // 50% chance for torches, but deterministic
                     // Use deterministic positioning based on stable wall properties (not wall.x which moves)
                     const torchSeed = Math.sin(wall.depth * 100 + wall.type * 50 + wall.width * 0.01) * 1000;
                     const torchX = wx + wall.width * (0.3 + (Math.abs(torchSeed) % 1000) / 1000 * 0.4);
-                    const torchY = wy + wall.height * 0.6;
+                    const torchY = wy + wall.height * 0.4;
                     
-                    // Torch holder
-                    this.ctx.fillStyle = `rgba(101, 67, 33, ${alpha})`;
-                    this.ctx.fillRect(torchX - 2, torchY, 4, 15);
-                    
-                    // Torch flame with flicker
-                    const flicker = Math.sin(Date.now() * 0.01 + wall.depth * 10 + wall.type) * 0.3 + 0.7;
-                    this.ctx.fillStyle = `rgba(255, 165, 0, ${alpha * 0.8 * flicker})`;
-                    this.ctx.beginPath();
-                    this.ctx.arc(torchX, torchY - 3, 3 * flicker, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    
-                    // Flame glow
-                    this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.3 * flicker})`;
-                    this.ctx.beginPath();
-                    this.ctx.arc(torchX, torchY - 3, 6 * flicker, 0, Math.PI * 2);
-                    this.ctx.fill();
+                    // Only draw torches for level 2
+                    if (this.level === 2) {
+                         // Torch holder (metal bracket on wall)
+                         this.ctx.fillStyle = `rgba(74, 63, 53, ${alpha * 0.6})`;
+                         this.ctx.fillRect(torchX - 4, torchY - 8, 8, 16);
+                         this.ctx.fillRect(torchX - 6, torchY + 8, 12, 3);
+                         
+                         // Torch flame with flicker
+                         const flicker = Math.sin(Date.now() * 0.01 + wall.depth * 10 + wall.type) * 0.3 + 0.7;
+                         this.ctx.fillStyle = `rgba(255, 140, 0, ${alpha * 0.5 * flicker})`;
+                         this.ctx.beginPath();
+                         this.ctx.arc(torchX, torchY - 5, 5 * flicker, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Inner flame (brighter)
+                         this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.4 * flicker})`;
+                         this.ctx.beginPath();
+                         this.ctx.arc(torchX, torchY - 6, 3 * flicker, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         
+                         // Flame glow on wall
+                         this.ctx.fillStyle = `rgba(255, 165, 0, ${alpha * 0.15 * flicker})`;
+                         this.ctx.beginPath();
+                         this.ctx.arc(torchX, torchY - 5, 12 * flicker, 0, Math.PI * 2);
+                         this.ctx.fill();
+                    }
                }
                
-               // Add some mystical glow effects
-               // Use deterministic decision based on wall properties to prevent random appearance/disappearance
+               // Add mystical glowing runes on the wall
                const glowPresenceSeed = Math.cos(wall.depth * 75 + wall.type * 30 + wall.width * 0.015) * 1000;
-               if (Math.abs(glowPresenceSeed) % 1000 < 200) { // 20% chance for mystical effects, but deterministic
-                    // Use deterministic positioning based on stable wall properties
+               if (Math.abs(glowPresenceSeed) % 1000 < 300 && this.level === 2) { // 30% chance for mystical runes
                     const glowSeed = Math.cos(wall.depth * 200 + wall.type * 75 + wall.width * 0.005) * 1000;
                     const glowX = wx + wall.width * 0.5 + (Math.abs(glowSeed) % 200 - 100) * 0.5;
                     const glowY = wy + wall.height * 0.3;
                     
-                    // Mystical energy glow
-                    const glowGradient = this.ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, 20);
-                    glowGradient.addColorStop(0, `rgba(255, 215, 0, ${alpha * 0.6})`);
-                    glowGradient.addColorStop(0.5, `rgba(255, 165, 0, ${alpha * 0.4})`);
-                    glowGradient.addColorStop(1, `rgba(255, 215, 0, 0)`);
+                    // Glowing rune symbol
+                    const pulseIntensity = 0.3 + Math.sin(Date.now() * 0.003) * 0.2;
+                    const glowGradient = this.ctx.createRadialGradient(glowX, glowY, 0, glowX, glowY, 15);
+                    glowGradient.addColorStop(0, `rgba(212, 175, 55, ${alpha * pulseIntensity * 0.4})`);
+                    glowGradient.addColorStop(0.5, `rgba(255, 140, 0, ${alpha * pulseIntensity * 0.3})`);
+                    glowGradient.addColorStop(1, `rgba(212, 175, 55, 0)`);
                     
                     this.ctx.fillStyle = glowGradient;
                     this.ctx.beginPath();
-                    this.ctx.arc(glowX, glowY, 20, 0, Math.PI * 2);
+                    this.ctx.arc(glowX, glowY, 15, 0, Math.PI * 2);
                     this.ctx.fill();
+                    
+                    // Rune symbol in center
+                    this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha * pulseIntensity * 0.5})`;
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('⚡', glowX, glowY + 4);
                }
           });
      }
@@ -3313,35 +3432,89 @@ class EndlessRunner {
                     this.ctx.fillStyle = '#32CD32';
                }
           } else if (this.level === 2) {
-               // Snowy ground - white snow with ice patches and drifts
-               this.ctx.fillStyle = '#FFFFFF'; // Pure white snow
+               // Temple ground - ancient stone slabs with worn edges, faded engravings, and mystical light
+               this.ctx.fillStyle = '#C2B280'; // Muted stone base
                this.ctx.fillRect(0, this.ground, this.canvas.width, this.canvas.height - this.ground);
-               
-               // Ice patches and snow drifts
-               this.ctx.fillStyle = '#E6F3FF'; // Light blue ice
-               for (let i = 0; i < this.canvas.width; i += 100) {
-                    let offset = (i + this.score * 0.5) % 200;
-                    // Ice patches
-                    this.ctx.fillRect(offset, this.ground, 30, 4);
-                    this.ctx.fillRect(offset + 60, this.ground + 2, 25, 3);
-                    
-                    // Snow drifts
-                    this.ctx.fillStyle = '#F8F8FF'; // Slightly off-white snow drifts
-                    this.ctx.beginPath();
-                    this.ctx.ellipse(offset + 40, this.ground - 2, 20, 6, 0, 0, Math.PI);
-                    this.ctx.fill();
-                    
-                    this.ctx.fillStyle = '#E6F3FF'; // Reset to ice color
+
+               // Large stone slabs
+               const tileW = 90;
+               const tileH = 54;
+               for (let y = this.ground; y < this.canvas.height; y += tileH) {
+                    for (let x = 0; x < this.canvas.width; x += tileW) {
+                         // Seed for deterministic variation
+                         const seed = ((x * 73856093) ^ (y * 19349663)) & 0xffffffff;
+                         function rand(n) { return ((Math.sin(seed + n) + 1) * 0.5); }
+                         // Subtle color variation and worn edges
+                         const shade = 180 + Math.floor(rand(1) * 30);
+                         this.ctx.fillStyle = `rgb(${shade},${shade-8},${shade-18})`;
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(x + 8, y + 6 + rand(2) * 5);
+                         this.ctx.lineTo(x + tileW - 10, y + 4 + rand(3) * 5);
+                         this.ctx.lineTo(x + tileW - 6, y + tileH - 12 - rand(4) * 5);
+                         this.ctx.lineTo(x + 4, y + tileH - 8 - rand(5) * 5);
+                         this.ctx.closePath();
+                         this.ctx.fill();
+
+                         // Faded engraved pattern (ancient temple motif)
+                         if ((x + y) % 180 === 0) {
+                              this.ctx.save();
+                              this.ctx.globalAlpha = 0.12;
+                              this.ctx.strokeStyle = '#8B7355';
+                              this.ctx.lineWidth = 2;
+                              this.ctx.beginPath();
+                              this.ctx.arc(x + tileW/2, y + tileH/2, 18 + rand(6) * 10, 0, Math.PI * 2);
+                              this.ctx.stroke();
+                              this.ctx.restore();
+                              // Faded glyph
+                              this.ctx.save();
+                              this.ctx.globalAlpha = 0.10;
+                              this.ctx.fillStyle = '#A0826D';
+                              this.ctx.font = 'bold 18px Arial';
+                              this.ctx.textAlign = 'center';
+                              this.ctx.fillText('𓂀', x + tileW/2, y + tileH/2 + 7);
+                              this.ctx.restore();
+                         }
+
+                         // Soft light gradient for mystical effect
+                         if ((x + y) % 270 === 0) {
+                              const lx = x + tileW/2;
+                              const ly = y + tileH/2;
+                              const grad = this.ctx.createRadialGradient(lx, ly, 0, lx, ly, 28);
+                              grad.addColorStop(0, 'rgba(255,255,200,0.18)');
+                              grad.addColorStop(0.7, 'rgba(255,255,200,0.08)');
+                              grad.addColorStop(1, 'rgba(255,255,200,0)');
+                              this.ctx.save();
+                              this.ctx.globalAlpha = 0.7;
+                              this.ctx.fillStyle = grad;
+                              this.ctx.beginPath();
+                              this.ctx.arc(lx, ly, 28, 0, Math.PI * 2);
+                              this.ctx.fill();
+                              this.ctx.restore();
+                         }
+
+                         // Soft shadow for depth
+                         this.ctx.save();
+                         this.ctx.globalAlpha = 0.13;
+                         this.ctx.fillStyle = '#8B7355';
+                         this.ctx.fillRect(x + tileW - 14, y + 10, 14, tileH - 20);
+                         this.ctx.restore();
+                    }
                }
-               
-               // Add some frost/sparkle effects
-               this.ctx.fillStyle = 'rgba(173, 216, 230, 0.8)';
-               for (let i = 0; i < this.canvas.width; i += 80) {
-                    let offset = (i + this.score * 0.3) % 160;
+
+               // Subtle grout lines between slabs
+               this.ctx.strokeStyle = '#BCA37A';
+               this.ctx.lineWidth = 2;
+               for (let y = this.ground; y < this.canvas.height; y += tileH) {
                     this.ctx.beginPath();
-                    this.ctx.arc(offset + 20, this.ground + 5, 1, 0, Math.PI * 2);
-                    this.ctx.arc(offset + 50, this.ground + 3, 0.8, 0, Math.PI * 2);
-                    this.ctx.fill();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+               }
+               for (let x = 0; x < this.canvas.width; x += tileW) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, this.ground);
+                    this.ctx.lineTo(x, this.canvas.height);
+                    this.ctx.stroke();
                }
           }
      }
@@ -3356,7 +3529,7 @@ class EndlessRunner {
           this.updateClouds();
           this.updateBackgroundTrees();
           this.updateBackgroundWalls();
-          this.updateSnowParticles(); // Update snow particles for level 2
+          this.updateTorchParticles(); // Update torch particles for level 2
           this.updateGameSpeed();
           this.checkCollisions();
           this.updateHitTimestamps(); // Check for hit reset
@@ -3585,11 +3758,11 @@ class EndlessRunner {
                gradient.addColorStop(0.7, '#98FB98');
                gradient.addColorStop(1, '#228B22');
           } else if (this.level === 2) {
-               // Snowy theme - winter sky blue to white
+               // Temple theme - warm desert/ancient colors
                gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-               gradient.addColorStop(0, '#E6F3FF'); // Light blue sky
-               gradient.addColorStop(0.6, '#FFFFFF'); // White
-               gradient.addColorStop(1, '#F8F8FF'); // Snow white ground
+               gradient.addColorStop(0, '#FFE4B5'); // Light sandy yellow
+               gradient.addColorStop(0.6, '#DEB887'); // Burlywood
+               gradient.addColorStop(1, '#D2B48C'); // Tan stone
           }
           this.ctx.fillStyle = gradient;
           this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -3612,7 +3785,7 @@ class EndlessRunner {
                this.drawBackgroundTrees();
           } else if (this.level === 2) {
                this.drawBackgroundWalls();
-               this.drawSnowParticles(); // Draw snow particles for level 2
+               this.drawTorchParticles(); // Draw torch particles for level 2
           }
           
           this.drawGround();
