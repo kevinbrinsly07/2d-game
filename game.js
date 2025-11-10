@@ -1885,6 +1885,11 @@ class EndlessRunner {
           // Check for level progression
           if (this.score >= 5 && this.level === 1) {
                this.level = 2;
+               
+               // Reset hit tracking when entering new level
+               this.hitTimestamps = [];
+               this.lastHitTime = 0;
+               
                // Update level display
                const levelElement = document.getElementById('level');
                if (levelElement) {
