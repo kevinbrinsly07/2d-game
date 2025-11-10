@@ -7,8 +7,9 @@ class EndlessRunner {
           
           // Audio setup
           this.audioContext = null;
-          this.backgroundMusicOscillators = [];
-          this.backgroundMusicInterval = null;
+          this.backgroundMusic = new Audio('song/song.mp3'); // Load MP3 file
+          this.backgroundMusic.loop = true; // Loop the music
+          this.backgroundMusic.volume = 0.5; // Set volume to 50%
           this.audioEnabled = localStorage.getItem('audioEnabled') !== 'false'; // Default to true
           this.musicEnabled = localStorage.getItem('musicEnabled') !== 'false'; // Default to true
           this.initAudio();
@@ -170,34 +171,19 @@ class EndlessRunner {
      
      // Background music management
      startBackgroundMusic() {
-          if (!this.audioContext || !this.musicEnabled) return;
+          if (!this.musicEnabled) return;
           
-          // Stop any existing background music
-          this.stopBackgroundMusic();
-          
-          // Create new background music based on current level
-          if (this.level === 1) {
-               this.playLevel1Music();
-          } else if (this.level === 2) {
-               this.playLevel2Music();
-          }
+          // Play the MP3 file
+          this.backgroundMusic.currentTime = 0; // Reset to beginning
+          this.backgroundMusic.play().catch(err => {
+               console.warn('Failed to play background music:', err);
+          });
      }
      
      stopBackgroundMusic() {
-          if (this.backgroundMusicOscillators) {
-               this.backgroundMusicOscillators.forEach(osc => {
-                    try {
-                         osc.stop();
-                    } catch (e) {
-                         // Oscillator might already be stopped
-                    }
-               });
-          }
-          this.backgroundMusicOscillators = [];
-          if (this.backgroundMusicInterval) {
-               clearInterval(this.backgroundMusicInterval);
-               this.backgroundMusicInterval = null;
-          }
+          // Pause the MP3 file
+          this.backgroundMusic.pause();
+          this.backgroundMusic.currentTime = 0; // Reset to beginning
      }
 
      toggleAudio() {
@@ -240,105 +226,6 @@ class EndlessRunner {
           }
      }
      
-     playLevel1Music() {
-          // Forest adventure theme - melodic and adventurous
-          this.backgroundMusicOscillators = [];
-          let noteIndex = 0;
-          const melody = [
-               { freq: 523, duration: 300, type: 'sine' }, // C5 - Forest call
-               { freq: 659, duration: 250, type: 'sine' }, // E5 - Adventure
-               { freq: 784, duration: 400, type: 'sine' }, // G5 - Journey
-               { freq: 659, duration: 200, type: 'sine' }, // E5 - Return
-               { freq: 698, duration: 300, type: 'sine' }, // F5 - Discovery
-               { freq: 784, duration: 350, type: 'sine' }, // G5 - Exploration
-               { freq: 880, duration: 500, type: 'sine' }, // A5 - Triumph
-               { freq: 784, duration: 250, type: 'sine' }, // G5 - Rest
-               { freq: 698, duration: 300, type: 'sine' }, // F5 - Reflection
-               { freq: 659, duration: 350, type: 'sine' }, // E5 - Wisdom
-               { freq: 587, duration: 400, type: 'sine' }, // D5 - Growth
-               { freq: 523, duration: 600, type: 'sine' }, // C5 - Home
-          ];
-
-          const playNextNote = () => {
-               if (this.gameState !== 'playing') return;
-
-               const note = melody[noteIndex % melody.length];
-               const oscillator = this.audioContext.createOscillator();
-               const gainNode = this.audioContext.createGain();
-
-               oscillator.connect(gainNode);
-               gainNode.connect(this.audioContext.destination);
-
-               oscillator.frequency.setValueAtTime(note.freq, this.audioContext.currentTime);
-               oscillator.type = note.type;
-
-               gainNode.gain.setValueAtTime(0.08, this.audioContext.currentTime);
-               gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + note.duration / 1000);
-
-               oscillator.start(this.audioContext.currentTime);
-               oscillator.stop(this.audioContext.currentTime + note.duration / 1000);
-
-               this.backgroundMusicOscillators.push(oscillator);
-
-               noteIndex++;
-          };
-
-          // Play first note immediately
-          playNextNote();
-
-          // Set up interval for continuous melody
-          this.backgroundMusicInterval = setInterval(playNextNote, 250); // Steady, adventurous rhythm
-     }
-     
-     playLevel2Music() {
-          // Temple theme - mysterious and ancient
-          this.backgroundMusicOscillators = [];
-          let noteIndex = 0;
-          const melody = [
-               { freq: 392, duration: 350, type: 'triangle' }, // G4 - Mystery
-               { freq: 523, duration: 300, type: 'triangle' }, // C5 - Ancient
-               { freq: 587, duration: 280, type: 'triangle' }, // D5 - Temple
-               { freq: 523, duration: 250, type: 'triangle' }, // C5 - Echo
-               { freq: 440, duration: 320, type: 'triangle' }, // A4 - Secrets
-               { freq: 494, duration: 300, type: 'triangle' }, // B4 - Hidden
-               { freq: 587, duration: 350, type: 'triangle' }, // D5 - Discovery
-               { freq: 659, duration: 280, type: 'triangle' }, // E5 - Revelation
-               { freq: 587, duration: 300, type: 'triangle' }, // D5 - Wisdom
-               { freq: 523, duration: 320, type: 'triangle' }, // C5 - Ancient path
-               { freq: 440, duration: 350, type: 'triangle' }, // A4 - Return
-               { freq: 392, duration: 400, type: 'triangle' }, // G4 - Eternal
-          ];
-
-          const playNextNote = () => {
-               if (this.gameState !== 'playing') return;
-
-               const note = melody[noteIndex % melody.length];
-               const oscillator = this.audioContext.createOscillator();
-               const gainNode = this.audioContext.createGain();
-
-               oscillator.connect(gainNode);
-               gainNode.connect(this.audioContext.destination);
-
-               oscillator.frequency.setValueAtTime(note.freq, this.audioContext.currentTime);
-               oscillator.type = note.type;
-
-               gainNode.gain.setValueAtTime(0.09, this.audioContext.currentTime);
-               gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + note.duration / 1000);
-
-               oscillator.start(this.audioContext.currentTime);
-               oscillator.stop(this.audioContext.currentTime + note.duration / 1000);
-
-               this.backgroundMusicOscillators.push(oscillator);
-
-               noteIndex++;
-          };
-
-          // Play first note immediately
-          playNextNote();
-
-          // Set up interval for continuous melody
-          this.backgroundMusicInterval = setInterval(playNextNote, 220); // Mysterious, steady rhythm
-     }
      
      setupEventListeners() {
           document.addEventListener('keydown', (e) => {
