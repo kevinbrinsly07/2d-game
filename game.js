@@ -21,7 +21,7 @@ class EndlessRunner {
           this.level = 1; // Add level system
           this.gameSpeed = 6; // Increased from 4 to 6
           this.baseGameSpeed = 6; // Increased from 4 to 6
-          this.gravity = 0.5; // Increased from 0.8 to 1.0
+          this.gravity = 0.7; // Increased from 0.8 to 1.0
           this.slowdownTimer = 0;
           this.hitTimestamps = [];
           this.hitFlash = 0;
@@ -335,6 +335,9 @@ class EndlessRunner {
           this.scoreMultiplier = false;
           this.scoreMultiplierTimer = 0;
           document.getElementById('gameOverScreen').classList.add('hidden');
+          // Update UI to show reset coin count
+          document.getElementById('score').textContent = '0';
+          document.getElementById('distance').textContent = '0';
           this.generateClouds();
           this.generateBackgroundTrees();
           this.generateBackgroundWalls();
@@ -1541,8 +1544,9 @@ class EndlessRunner {
                let coin = this.coins[i];
                if (!coin.collected && this.isColliding(this.player, coin)) {
                     coin.collected = true;
-                    const coinValue = this.scoreMultiplier ? 20 : 10; // Double points with multiplier
-                    this.score += coinValue; // Bonus points for coins
+                    const coinValue = this.scoreMultiplier ? 2 : 1; // 1 point per coin, 2 with multiplier
+                    this.score += coinValue; // 1 point per coin
+                    this.updateScore(); // Update display and check for difficulty increase
                     this.createCoinParticles(coin.x + coin.width/2, coin.y + coin.height/2);
                     this.playCoinSound();
                     this.coins.splice(i, 1);
@@ -1729,13 +1733,11 @@ class EndlessRunner {
      }
      
      updateScore() {
-          this.score++;
-          this.distance += 2; // Add 2 meters per score point (approximately 6 pixels/frame * 3 frames/score / 10 pixels/meter)
+          // Only update the display, don't auto-increment
           document.getElementById('score').textContent = this.score;
-          document.getElementById('distance').textContent = this.distance;
           
-          // Increase difficulty gradually
-          if (this.score % 75 === 0) {
+          // Increase difficulty gradually based on coin count
+          if (this.score > 0 && this.score % 75 === 0) {
                let speedIncrease = 0.5; // Base speed increase
                
                this.baseGameSpeed += speedIncrease;
@@ -3707,9 +3709,10 @@ class EndlessRunner {
           this.updateHitTimestamps(); // Check for hit reset
           this.updateUI();
           
-          // Update score every few frames
-          if (this.score % 3 === 0) {
-               this.updateScore();
+          // Update distance every few frames
+          if (this.gameState === 'playing') {
+               this.distance += 0.5; // Increment distance over time
+               document.getElementById('distance').textContent = Math.floor(this.distance);
           }
      }
      
