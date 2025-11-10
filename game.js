@@ -60,7 +60,6 @@ class EndlessRunner {
           this.torchParticles = []; // Torch particles for level 2
           this.dangerousAreas = []; // Track dangerous obstacles that need platform assistance
           this.pendulums = []; // Swinging axe pendulums
-          this.arrowTraps = []; // Arrow traps that shoot projectiles
           
           this.obstacleTimer = 0;
           this.birdTimer = 0;
@@ -74,8 +73,6 @@ class EndlessRunner {
           this.treeTimer = 0;
           this.fireTimer = 0;
           this.pendulumTimer = 0;
-          
-          this.arrowTrapTimer = 0;
           
           // Power-up effects
           this.invulnerable = false;
@@ -327,7 +324,6 @@ class EndlessRunner {
           this.treeTimer = 0;
           this.fireTimer = 0;
           this.pendulumTimer = 0;
-          this.arrowTrapTimer = 0;
           this.invulnerable = false;
           this.invulnerableTimer = 0;
           this.shieldHits = 0;
@@ -428,30 +424,62 @@ class EndlessRunner {
                          // Easier gameplay: more obstacles but still with jump space
                          if (obstacleType < 0.15) { // Increased from 0.08 to 0.15 (15% instead of 8%)
                               // Ground obstacles (15%) - Rock: Ground-level obstacles that must be jumped over
-                              this.obstacles.push({
-                                   x: this.canvas.width,
-                                   y: this.ground - 45,
-                                   width: 35,
-                                   height: 45,
-                                   type: 'rock'
-                              });
-                              this.consecutiveDangers = 0;
+                              const obstacleX = this.canvas.width;
+                              const obstacleWidth = 35;
+                              // Check if this obstacle would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   obstacleX < gap.x + gap.width && obstacleX + obstacleWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.obstacles.push({
+                                        x: obstacleX,
+                                        y: this.ground - 45,
+                                        width: obstacleWidth,
+                                        height: 45,
+                                        type: 'rock'
+                                   });
+                                   this.consecutiveDangers = 0;
+                              }
                          } else if (obstacleType < 0.25) { // Increased from 0.13 to 0.25 (10% instead of 5%)
                               // Flying birds (10%) - Aerial obstacles that fly in wavy patterns, can be slid under
                               this.spawnBird();
                               this.consecutiveDangers = 0;
                          } else if (obstacleType < 0.33) { // Reduced from 0.45 to 0.33 (8% instead of 20%)
                               // Fire pits (8%) - Ground fire traps that activate periodically, dangerous when active
-                              this.spawnFireTrap();
+                              const trapX = this.canvas.width;
+                              const trapWidth = 60;
+                              // Check if this fire trap would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   trapX < gap.x + gap.width && trapX + trapWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.spawnFireTrap();
+                              }
                          } else if (obstacleType < 0.40) { // Adjusted from 0.42 to 0.40 (7% instead of -3%)
                               // Gaps (7%) - Ground gaps that must be jumped over, always deadly
                               this.spawnGap();
                          } else if (obstacleType < 0.54) { // Adjusted from 0.56 to 0.54 (14% instead of 7%)
                               // Fire traps (14%) - Ground traps that activate periodically, dangerous when active
-                              this.spawnFireTrap();
-                         } else if (obstacleType < 0.75) { // Adjusted from 0.77 to 0.75 (21% instead of 21%)
-                              // Arrow trap (21%) - Wall traps that shoot projectiles
-                              this.spawnArrowTrap();
+                              const trapX = this.canvas.width;
+                              const trapWidth = 60;
+                              // Check if this fire trap would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   trapX < gap.x + gap.width && trapX + trapWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.spawnFireTrap();
+                              }
+                         } else if (obstacleType < 0.83) { // Adjusted from 0.74 to 0.83 (21% instead of 12%)
+                              // Fire traps (21%) - Ground traps that activate periodically, dangerous when active
+                              const trapX = this.canvas.width;
+                              const trapWidth = 60;
+                              // Check if this fire trap would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   trapX < gap.x + gap.width && trapX + trapWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.spawnFireTrap();
+                              }
                          } else {
                               // Coins or power-ups (5%) - Reduced coin occurrence
                               if (Math.random() < 0.8) {
@@ -464,29 +492,61 @@ class EndlessRunner {
                     } else {
                          // Score >= 50: More challenging gameplay with more obstacles
                          if (obstacleType < 0.3) { // Ground obstacles (30%)
-                              this.obstacles.push({
-                                   x: this.canvas.width,
-                                   y: this.ground - 45,
-                                   width: 35,
-                                   height: 45,
-                                   type: 'rock'
-                              });
-                              this.consecutiveDangers = 0;
+                              const obstacleX = this.canvas.width;
+                              const obstacleWidth = 35;
+                              // Check if this obstacle would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   obstacleX < gap.x + gap.width && obstacleX + obstacleWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.obstacles.push({
+                                        x: obstacleX,
+                                        y: this.ground - 45,
+                                        width: obstacleWidth,
+                                        height: 45,
+                                        type: 'rock'
+                                   });
+                                   this.consecutiveDangers = 0;
+                              }
                          } else if (obstacleType < 0.45) { // Flying birds (15%)
                               this.spawnBird();
                               this.consecutiveDangers = 0;
                          } else if (obstacleType < 0.45) { // Reduced from 0.7 to 0.57 (12% instead of 25%)
                               // Fire pits (12%) - Ground fire traps that activate periodically, dangerous when active
-                              this.spawnFireTrap();
+                              const trapX = this.canvas.width;
+                              const trapWidth = 60;
+                              // Check if this fire trap would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   trapX < gap.x + gap.width && trapX + trapWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.spawnFireTrap();
+                              }
                          } else if (obstacleType < 0.62) { // Adjusted from 0.75 to 0.62 (5% instead of 5%)
                               // Gaps (5%) - Ground gaps that must be jumped over, always deadly
                               this.spawnGap();
                          } else if (obstacleType < 0.74) { // Adjusted from 0.87 to 0.74 (12% instead of 5%)
                               // Fire traps (12%) - Ground traps that activate periodically, dangerous when active
-                              this.spawnFireTrap();
-                         } else if (obstacleType < 0.74) { // Adjusted from 0.96 to 0.83 (9% instead of 9%)
-                              // Arrow trap (9%) - Wall traps that shoot projectiles
-                              this.spawnArrowTrap();
+                              const trapX = this.canvas.width;
+                              const trapWidth = 60;
+                              // Check if this fire trap would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   trapX < gap.x + gap.width && trapX + trapWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.spawnFireTrap();
+                              }
+                         } else if (obstacleType < 0.83) { // Adjusted from 0.74 to 0.83 (9% instead of 9%)
+                              // Fire traps (9%) - Ground traps that activate periodically, dangerous when active
+                              const trapX = this.canvas.width;
+                              const trapWidth = 60;
+                              // Check if this fire trap would overlap with any existing gaps
+                              const wouldOverlapGap = this.gaps.some(gap => 
+                                   trapX < gap.x + gap.width && trapX + trapWidth > gap.x
+                              );
+                              if (!wouldOverlapGap) {
+                                   this.spawnFireTrap();
+                              }
                          } else {
                               // Coins or power-ups (0.5%) - Reduced coin occurrence
                               if (Math.random() < 0.8) {
@@ -697,27 +757,7 @@ class EndlessRunner {
           this.markDangerousArea(this.canvas.width + 50, pendulumLength + 25, 'pendulum');
      }
      
-     spawnArrowTrap() {
-          // Creates arrow trap obstacles that shoot arrows from walls
-          // Arrows are projectiles that move horizontally and must be avoided
-          const arrowSpeed = 8 + Math.random() * 4; // Arrow flight speed
-          const arrowCount = 1 + Math.floor(Math.random() * 3); // 1-3 arrows
-          
-          this.arrowTraps.push({
-               x: this.canvas.width,
-               y: this.ground - 60 - Math.random() * 40, // Trap position on wall/ceiling
-               width: 40,
-               height: 20,
-               arrows: [], // Array of fired arrows
-               arrowSpeed: arrowSpeed,
-               arrowCount: arrowCount,
-               timer: Math.random() * 60 + 30, // Delay before firing
-               fired: false
-          });
-          
-          // Arrow traps are dangerous and may need platform assistance
-          this.markDangerousArea(this.canvas.width + 20, 40, 'arrow');
-     }
+
      
      markDangerousArea(centerX, width, type) {
           // Add dangerous area to tracking
@@ -1085,37 +1125,6 @@ class EndlessRunner {
                return pendulum.x + pendulum.length + pendulum.axeWidth > 0;
           });
           
-          // Update arrow traps
-          this.arrowTraps = this.arrowTraps.filter(trap => {
-               trap.x -= this.gameSpeed;
-               
-               // Update timer and fire arrows
-               if (!trap.fired) {
-                    trap.timer--;
-                    if (trap.timer <= 0) {
-                         // Fire arrows
-                         for (let i = 0; i < trap.arrowCount; i++) {
-                              trap.arrows.push({
-                                   x: trap.x + trap.width/2,
-                                   y: trap.y + trap.height/2 + i * 10, // Stagger arrows vertically
-                                   width: 20,
-                                   height: 4,
-                                   speed: trap.arrowSpeed
-                              });
-                         }
-                         trap.fired = true;
-                    }
-               }
-               
-               // Update fired arrows
-               trap.arrows = trap.arrows.filter(arrow => {
-                    arrow.x -= arrow.speed;
-                    return arrow.x + arrow.width > 0;
-               });
-               
-               return trap.x + trap.width > 0 || trap.arrows.length > 0;
-          });
-          
           // Update particles
           this.particles = this.particles.filter(particle => {
                particle.x += particle.vx;
@@ -1203,17 +1212,6 @@ class EndlessRunner {
                for (let trap of this.fireTraps) {
                     const distanceToMonster = trap.x - this.monster.x;
                     if (trap.active && distanceToMonster > 0 && distanceToMonster < 150) {
-                         shouldJump = true;
-                         break;
-                    }
-               }
-          }
-          
-          // Check arrow traps - monster jumps over them
-          if (!shouldJump) {
-               for (let trap of this.arrowTraps) {
-                    const distanceToMonster = trap.x - this.monster.x;
-                    if (distanceToMonster > 0 && distanceToMonster < 150) {
                          shouldJump = true;
                          break;
                     }
@@ -1451,17 +1449,6 @@ class EndlessRunner {
                          return;
                     }
                }
-               
-               // Check arrow collisions
-               for (let trap of this.arrowTraps) {
-                    for (let i = trap.arrows.length - 1; i >= 0; i--) {
-                         let arrow = trap.arrows[i];
-                         if (this.isColliding(this.player, arrow)) {
-                              this.hitObstacle();
-                              return;
-                         }
-                    }
-               }
           } else if (this.invulnerable && this.shieldHits > 0) {
                // Shield can take one hit
                let hitDetected = false;
@@ -1524,18 +1511,6 @@ class EndlessRunner {
                               hitDetected = true;
                               break;
                          }
-                    }
-               }
-               
-               if (!hitDetected) {
-                    for (let trap of this.arrowTraps) {
-                         for (let i = trap.arrows.length - 1; i >= 0; i--) {
-                              if (this.isColliding(this.player, trap.arrows[i])) {
-                                   hitDetected = true;
-                                   break;
-                              }
-                         }
-                         if (hitDetected) break;
                     }
                }
                
@@ -2555,32 +2530,6 @@ class EndlessRunner {
                this.ctx.stroke();
                
                this.ctx.restore();
-          });
-          
-          // Draw arrow traps and arrows
-          this.arrowTraps.forEach(trap => {
-               // Draw trap mechanism (wall-mounted)
-               this.ctx.fillStyle = '#654321';
-               this.ctx.fillRect(trap.x, trap.y, trap.width, trap.height);
-               
-               // Draw arrows
-               trap.arrows.forEach(arrow => {
-                    this.ctx.fillStyle = '#8B4513'; // Wooden shaft
-                    this.ctx.fillRect(arrow.x, arrow.y, arrow.width, arrow.height);
-                    
-                    // Arrow head
-                    this.ctx.fillStyle = '#C0C0C0'; // Metal tip
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(arrow.x + arrow.width, arrow.y + arrow.height/2);
-                    this.ctx.lineTo(arrow.x + arrow.width + 8, arrow.y);
-                    this.ctx.lineTo(arrow.x + arrow.width + 8, arrow.y + arrow.height);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    
-                    // Arrow fletching
-                    this.ctx.fillStyle = '#DC143C'; // Red feathers
-                    this.ctx.fillRect(arrow.x - 3, arrow.y, 3, arrow.height);
-               });
           });
           
           // Draw birds (forest birds)
