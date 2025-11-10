@@ -1996,7 +1996,7 @@ class EndlessRunner {
           document.getElementById('score').textContent = this.score;
           
           // Check for level progression
-          if (this.score >= 150 && this.level === 1) {
+          if (this.score >= 5 && this.level === 1) {
                this.level = 2;
                // Update level display
                const levelElement = document.getElementById('level');
