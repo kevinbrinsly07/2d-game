@@ -74,16 +74,14 @@ class EndlessRunner {
           // Power-up effects
           this.invulnerable = false;
           this.invulnerableTimer = 0;
+          this.shieldHits = 0; // Number of hits the shield can take
           this.magnetCoins = false;
           this.magnetTimer = 0;
           this.speedBoost = false;
           this.speedBoostTimer = 0;
-          this.doubleJumpBoost = false;
-          this.doubleJumpTimer = 0;
+          this.autoDodge = false; // Auto-dodge during boost
           this.scoreMultiplier = false;
           this.scoreMultiplierTimer = 0;
-          this.slowMotion = false;
-          this.slowMotionTimer = 0;
           
           this.keys = {};
           
@@ -438,10 +436,14 @@ class EndlessRunner {
           this.fireTimer = 0;
           this.invulnerable = false;
           this.invulnerableTimer = 0;
+          this.shieldHits = 0;
           this.magnetCoins = false;
           this.magnetTimer = 0;
           this.speedBoost = false;
           this.speedBoostTimer = 0;
+          this.autoDodge = false;
+          this.scoreMultiplier = false;
+          this.scoreMultiplierTimer = 0;
           document.getElementById('gameOverScreen').classList.add('hidden');
           this.generateClouds();
           this.generateBackgroundTrees();
@@ -460,8 +462,8 @@ class EndlessRunner {
                     this.player.doubleJumpUsed = false;
                     this.playJumpSound();
                }
-               // Double jump (enhanced with power-up)
-               else if (!this.player.doubleJumpUsed || (this.doubleJumpBoost && this.player.doubleJumpUsed)) { // Allow multiple double jumps with boost
+               // Double jump
+               else if (!this.player.doubleJumpUsed) {
                     this.player.velocityY = -9; // Reduced from -15 to -9
                     this.player.doubleJumpUsed = true;
                     this.playJumpSound();
@@ -712,7 +714,7 @@ class EndlessRunner {
      }
      
      spawnPowerUp() {
-          const powerUpTypes = ['shield', 'magnet', 'speed', 'doublejump', 'multiplier', 'slowmotion'];
+          const powerUpTypes = ['shield', 'magnet', 'boost', 'doublecoins'];
           const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
           
           this.powerUps.push({
@@ -1114,7 +1116,11 @@ class EndlessRunner {
                     baseSpeed: 3.0, // Increased from 2.0 to 3.0
                     speed: 3.0,
                     frame: 0,
-                    catchDistance: 100 // Increased from 80 to 100
+                    catchDistance: 100, // Increased from 80 to 100
+                    jumping: false,
+                    velocityY: 0,
+                    sliding: false,
+                    slideTimer: 0
                };
           }
      }
@@ -1372,6 +1378,7 @@ class EndlessRunner {
                this.invulnerableTimer--;
                if (this.invulnerableTimer === 0) {
                     this.invulnerable = false;
+                    this.shieldHits = 0;
                }
           }
           
@@ -1386,14 +1393,8 @@ class EndlessRunner {
                this.speedBoostTimer--;
                if (this.speedBoostTimer === 0) {
                     this.speedBoost = false;
+                    this.autoDodge = false;
                     this.gameSpeed = this.baseGameSpeed;
-               }
-          }
-          
-          if (this.doubleJumpTimer > 0) {
-               this.doubleJumpTimer--;
-               if (this.doubleJumpTimer === 0) {
-                    this.doubleJumpBoost = false;
                }
           }
           
@@ -1403,18 +1404,117 @@ class EndlessRunner {
                     this.scoreMultiplier = false;
                }
           }
-          
-          if (this.slowMotionTimer > 0) {
-               this.slowMotionTimer--;
-               if (this.slowMotionTimer === 0) {
-                    this.slowMotion = false;
-                    this.gameSpeed = this.baseGameSpeed;
-               }
-          }
      }
      
      updateMonster() {
           if (!this.monster) return;
+          
+          // Monster copies player movements when obstacles come
+          // Check for incoming obstacles relative to monster position
+          let shouldJump = false;
+          let shouldSlide = false;
+          
+          // Check gaps/pits - monster must jump over them
+          for (let gap of this.gaps) {
+               const distanceToMonster = gap.x - this.monster.x;
+               // Check if gap is approaching
+               if (distanceToMonster > 0 && distanceToMonster < 200) {
+                    shouldJump = true;
+                    break;
+               }
+          }
+          
+          // Check ground obstacles
+          if (!shouldJump) {
+               for (let obstacle of this.obstacles) {
+                    const distanceToMonster = obstacle.x - this.monster.x;
+                    if (distanceToMonster > 0 && distanceToMonster < 150) {
+                         shouldJump = true;
+                         break;
+                    }
+               }
+          }
+          
+          // Check spikes
+          if (!shouldJump) {
+               for (let spike of this.spikes) {
+                    const distanceToMonster = spike.x - this.monster.x;
+                    if (distanceToMonster > 0 && distanceToMonster < 150) {
+                         shouldJump = true;
+                         break;
+                    }
+               }
+          }
+          
+          // Check fire traps - monster jumps over active ones
+          if (!shouldJump) {
+               for (let trap of this.fireTraps) {
+                    const distanceToMonster = trap.x - this.monster.x;
+                    if (trap.active && distanceToMonster > 0 && distanceToMonster < 150) {
+                         shouldJump = true;
+                         break;
+                    }
+               }
+          }
+          
+          // Check fallen trees
+          if (!shouldJump) {
+               for (let tree of this.fallenTrees) {
+                    const distanceToMonster = tree.x - this.monster.x;
+                    if (distanceToMonster > 0 && distanceToMonster < 150) {
+                         if (tree.canSlideUnder) {
+                              shouldSlide = true;
+                         } else {
+                              shouldJump = true;
+                         }
+                         break;
+                    }
+               }
+          }
+          
+          // Check birds - monster slides under them
+          if (!shouldSlide && !shouldJump) {
+               for (let bird of this.birds) {
+                    const distanceToMonster = bird.x - this.monster.x;
+                    if (distanceToMonster > 0 && distanceToMonster < 150) {
+                         shouldSlide = true;
+                         break;
+                    }
+               }
+          }
+          
+          // Execute jump
+          if (shouldJump && !this.monster.jumping) {
+               this.monster.velocityY = -12;
+               this.monster.jumping = true;
+          }
+          
+          // Execute slide
+          if (shouldSlide && !this.monster.sliding) {
+               this.monster.sliding = true;
+               this.monster.slideTimer = 20;
+          }
+          
+          // Handle monster sliding
+          if (this.monster.sliding) {
+               this.monster.slideTimer--;
+               if (this.monster.slideTimer <= 0) {
+                    this.monster.sliding = false;
+               }
+          }
+          
+          // Handle monster jumping physics
+          if (this.monster.jumping) {
+               this.monster.velocityY += 0.5; // Gravity
+               this.monster.y += this.monster.velocityY;
+               
+               // Ground collision
+               if (this.monster.y >= this.ground - 80) {
+                    this.monster.y = this.ground - 80;
+                    this.monster.velocityY = 0;
+                    this.monster.jumping = false;
+               }
+          }
           
           // Calculate distance to player
           let distanceToPlayer = Math.abs(this.monster.x - this.player.x);
@@ -1459,15 +1559,17 @@ class EndlessRunner {
                this.monster.x = this.canvas.width - this.monster.width - 50;
           }
           
-          // Vertical following - gets closer with more hits
-          let verticalDistance = Math.abs(this.monster.y - this.player.y);
-          let verticalChaseDistance = Math.max(20, 50 - (hitCount * 10)); // Increased from 35 to 50 pixels, minimum increased from 10 to 20
-          let verticalDeadZone = 5; // Add dead zone for vertical movement too
-          
-          if (this.monster.y > this.player.y + verticalChaseDistance + verticalDeadZone && this.monster.y > this.ground - 80) {
-               this.monster.y -= 2;
-          } else if (this.monster.y < this.player.y - verticalChaseDistance - verticalDeadZone && this.monster.y < this.ground - 80) {
-               this.monster.y += 2;
+          // Vertical following - only when not jumping
+          if (!this.monster.jumping) {
+               let verticalDistance = Math.abs(this.monster.y - this.player.y);
+               let verticalChaseDistance = Math.max(20, 50 - (hitCount * 10)); // Increased from 35 to 50 pixels, minimum increased from 10 to 20
+               let verticalDeadZone = 5; // Add dead zone for vertical movement too
+               
+               if (this.monster.y > this.player.y + verticalChaseDistance + verticalDeadZone && this.monster.y > this.ground - 80) {
+                    this.monster.y -= 2;
+               } else if (this.monster.y < this.player.y - verticalChaseDistance - verticalDeadZone && this.monster.y < this.ground - 80) {
+                    this.monster.y += 2;
+               }
           }
           
           // Monster speed increases progressively with each hit
@@ -1492,6 +1594,7 @@ class EndlessRunner {
           // Level 2 monsters become deadly after fewer hits
           let deadlyHitThreshold = this.level === 2 ? 1 : 2; // Only 1 hit needed in level 2
           
+          let verticalDistance = Math.abs(this.monster.y - this.player.y);
           if (distanceToPlayer < this.monster.catchDistance && verticalDistance < 30) {
                // Only catch if player has hit enough obstacles recently (within 10 seconds)
                if (this.hitTimestamps && this.hitTimestamps.length >= deadlyHitThreshold) { // Reduced from 3 to 2
@@ -1533,8 +1636,38 @@ class EndlessRunner {
      }
      
      checkCollisions() {
-          // Skip damage if invulnerable
-          const canTakeDamage = !this.invulnerable;
+          // Auto-dodge obstacles during boost
+          if (this.autoDodge) {
+               // Automatically jump over ground obstacles during boost
+               for (let obstacle of this.obstacles) {
+                    if (obstacle.x - this.player.x < 100 && obstacle.x > this.player.x && !this.player.jumping) {
+                         this.jump();
+                         break;
+                    }
+               }
+               for (let tree of this.fallenTrees) {
+                    if (tree.x - this.player.x < 100 && tree.x > this.player.x && !this.player.jumping) {
+                         this.jump();
+                         break;
+                    }
+               }
+               for (let spike of this.spikes) {
+                    if (spike.x - this.player.x < 100 && spike.x > this.player.x && !this.player.jumping) {
+                         this.jump();
+                         break;
+                    }
+               }
+               // Auto-slide under birds during boost
+               for (let bird of this.birds) {
+                    if (bird.x - this.player.x < 100 && bird.x > this.player.x && !this.player.sliding) {
+                         this.slide();
+                         break;
+                    }
+               }
+          }
+          
+          // Skip damage if invulnerable or auto-dodging
+          const canTakeDamage = !this.invulnerable && !this.autoDodge;
           
           // Check ground obstacle collisions
           if (canTakeDamage) {
@@ -1588,6 +1721,70 @@ class EndlessRunner {
                          this.hitObstacle();
                          return; // Don't remove fire trap, it stays
                     }
+               }
+          } else if (this.invulnerable && this.shieldHits > 0) {
+               // Shield can take one hit
+               let hitDetected = false;
+               
+               // Check all obstacle types for hits
+               for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                    if (this.isColliding(this.player, this.obstacles[i])) {
+                         this.obstacles.splice(i, 1);
+                         hitDetected = true;
+                         break;
+                    }
+               }
+               
+               if (!hitDetected) {
+                    for (let i = this.birds.length - 1; i >= 0; i--) {
+                         if (this.isColliding(this.player, this.birds[i])) {
+                              this.birds.splice(i, 1);
+                              hitDetected = true;
+                              break;
+                         }
+                    }
+               }
+               
+               if (!hitDetected) {
+                    for (let i = this.spikes.length - 1; i >= 0; i--) {
+                         if (this.isColliding(this.player, this.spikes[i])) {
+                              this.spikes.splice(i, 1);
+                              hitDetected = true;
+                              break;
+                         }
+                    }
+               }
+               
+               if (!hitDetected) {
+                    for (let i = this.fallenTrees.length - 1; i >= 0; i--) {
+                         if (this.isColliding(this.player, this.fallenTrees[i])) {
+                              if (!this.fallenTrees[i].canSlideUnder || !this.player.sliding) {
+                                   this.fallenTrees.splice(i, 1);
+                                   hitDetected = true;
+                                   break;
+                              }
+                         }
+                    }
+               }
+               
+               if (!hitDetected) {
+                    for (let i = this.fireTraps.length - 1; i >= 0; i--) {
+                         if (this.fireTraps[i].active && this.isColliding(this.player, this.fireTraps[i])) {
+                              hitDetected = true;
+                              break;
+                         }
+                    }
+               }
+               
+               // If shield was hit, remove it
+               if (hitDetected) {
+                    this.shieldHits--;
+                    if (this.shieldHits <= 0) {
+                         this.invulnerable = false;
+                         this.invulnerableTimer = 0;
+                    }
+                    // Play shield break sound
+                    this.playSound(300, 0.2, 'square', 0.3);
                }
           }
           
@@ -1671,29 +1868,22 @@ class EndlessRunner {
           switch(type) {
                case 'shield':
                     this.invulnerable = true;
-                    this.invulnerableTimer = Math.floor(180 * durationMultiplier); // Reduced from 300 to 180 frames (3 seconds instead of 5)
+                    this.invulnerableTimer = Math.floor(180 * durationMultiplier); // 3 seconds
+                    this.shieldHits = 1; // Can take one hit
                     break;
                case 'magnet':
                     this.magnetCoins = true;
-                    this.magnetTimer = Math.floor(360 * durationMultiplier); // Reduced from 600 to 360 frames (6 seconds instead of 10)
+                    this.magnetTimer = Math.floor(360 * durationMultiplier); // 6 seconds - pulls in nearby coins
                     break;
-               case 'speed':
+               case 'boost':
                     this.speedBoost = true;
-                    this.speedBoostTimer = Math.floor(180 * durationMultiplier); // Reduced from 300 to 180 frames (3 seconds instead of 5)
-                    this.gameSpeed = this.baseGameSpeed * (this.level === 2 ? 1.2 : 1.3); // Reduced multiplier from 1.5 to 1.3, further reduced to 1.2 in level 2
+                    this.speedBoostTimer = Math.floor(180 * durationMultiplier); // 3 seconds - rockets forward, auto-dodges obstacles
+                    this.gameSpeed = this.baseGameSpeed * (this.level === 2 ? 1.5 : 1.8); // Much faster
+                    this.autoDodge = true; // Auto-dodge obstacles during boost
                     break;
-               case 'doublejump':
-                    this.doubleJumpBoost = true;
-                    this.doubleJumpTimer = Math.floor(240 * durationMultiplier); // 4 seconds
-                    break;
-               case 'multiplier':
+               case 'doublecoins':
                     this.scoreMultiplier = true;
-                    this.scoreMultiplierTimer = Math.floor(300 * durationMultiplier); // 5 seconds
-                    break;
-               case 'slowmotion':
-                    this.slowMotion = true;
-                    this.slowMotionTimer = Math.floor(180 * durationMultiplier); // 3 seconds
-                    this.gameSpeed = this.baseGameSpeed * (this.level === 2 ? 0.7 : 0.6); // Slow down the game - less effective in level 2
+                    this.scoreMultiplierTimer = Math.floor(300 * durationMultiplier); // 5 seconds - double coins/score
                     break;
           }
      }
@@ -2139,14 +2329,33 @@ class EndlessRunner {
                this.ctx.setLineDash([]);
           }
           
-          // Draw speed boost effect
+          // Draw speed boost effect - rocket boost visual
           if (this.speedBoost) {
-               for (let i = 0; i < 3; i++) {
-                    this.ctx.fillStyle = `rgba(245, 158, 11, ${0.3 - i * 0.1})`;
+               // Rocket flame trail
+               for (let i = 0; i < 5; i++) {
+                    const flameAlpha = 0.5 - i * 0.1;
+                    this.ctx.fillStyle = `rgba(239, 68, 68, ${flameAlpha})`; // Red flame
                     this.ctx.beginPath();
-                    this.ctx.arc(px - i * 15 - 10, adjustedY + this.player.height/2, 
-                                3 - i, 0, Math.PI * 2);
+                    this.ctx.arc(px - i * 12 - 20, adjustedY + this.player.height/2, 
+                                5 - i, 0, Math.PI * 2);
                     this.ctx.fill();
+                    
+                    // Orange outer flame
+                    this.ctx.fillStyle = `rgba(251, 191, 36, ${flameAlpha * 0.7})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(px - i * 12 - 20, adjustedY + this.player.height/2, 
+                                7 - i, 0, Math.PI * 2);
+                    this.ctx.fill();
+               }
+               
+               // Speed lines
+               for (let i = 0; i < 4; i++) {
+                    this.ctx.strokeStyle = `rgba(245, 158, 11, ${0.4 - i * 0.1})`;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(px - 30 - i * 10, adjustedY + this.player.height/2 - 10 + i * 5);
+                    this.ctx.lineTo(px - 40 - i * 10, adjustedY + this.player.height/2 - 10 + i * 5);
+                    this.ctx.stroke();
                }
           }
      }
@@ -2733,96 +2942,107 @@ class EndlessRunner {
                
                switch(powerUp.type) {
                     case 'shield':
-                         // Leaf shield
-                         this.ctx.fillStyle = '#228B22';
+                         // Shield icon - protective barrier
+                         this.ctx.fillStyle = '#3B82F6';
                          this.ctx.beginPath();
-                         this.ctx.ellipse(0, 0, 12, 8, 0, 0, Math.PI * 2);
+                         this.ctx.moveTo(0, -10);
+                         this.ctx.lineTo(-8, -6);
+                         this.ctx.lineTo(-8, 4);
+                         this.ctx.lineTo(0, 10);
+                         this.ctx.lineTo(8, 4);
+                         this.ctx.lineTo(8, -6);
+                         this.ctx.closePath();
                          this.ctx.fill();
                          
-                         this.ctx.strokeStyle = '#32CD32';
+                         this.ctx.strokeStyle = '#60A5FA';
                          this.ctx.lineWidth = 2;
+                         this.ctx.stroke();
+                         
+                         // Shield cross
+                         this.ctx.strokeStyle = '#FFFFFF';
+                         this.ctx.lineWidth = 1.5;
                          this.ctx.beginPath();
-                         this.ctx.ellipse(0, 0, 8, 5, 0, 0, Math.PI * 2);
+                         this.ctx.moveTo(-5, 0);
+                         this.ctx.lineTo(5, 0);
+                         this.ctx.moveTo(0, -5);
+                         this.ctx.lineTo(0, 5);
                          this.ctx.stroke();
                          break;
                          
                     case 'magnet':
-                         // Vine magnet
-                         this.ctx.strokeStyle = '#228B22';
+                         // Magnet - horseshoe shape
+                         this.ctx.strokeStyle = '#DC2626';
                          this.ctx.lineWidth = 4;
                          this.ctx.beginPath();
-                         this.ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                         this.ctx.arc(0, 0, 8, 0, Math.PI);
                          this.ctx.stroke();
                          
-                         this.ctx.fillStyle = '#32CD32';
-                         this.ctx.beginPath();
-                         this.ctx.arc(0, 0, 6, 0, Math.PI * 2);
-                         this.ctx.fill();
+                         // Magnet poles
+                         this.ctx.fillStyle = '#DC2626';
+                         this.ctx.fillRect(-10, -2, 4, 8);
+                         this.ctx.fillRect(6, -2, 4, 8);
+                         
+                         // Plus/minus symbols
+                         this.ctx.fillStyle = '#FFFFFF';
+                         this.ctx.font = 'bold 8px Arial';
+                         this.ctx.textAlign = 'center';
+                         this.ctx.fillText('+', -8, 4);
+                         this.ctx.fillText('-', 8, 4);
                          break;
                          
-                    case 'speed':
-                         // Wind gust
-                         this.ctx.fillStyle = '#87CEEB';
+                    case 'boost':
+                         // Rocket boost - speed lines and flame
+                         this.ctx.fillStyle = '#F59E0B';
                          this.ctx.beginPath();
                          this.ctx.moveTo(-10, 0);
                          this.ctx.lineTo(10, -6);
                          this.ctx.lineTo(10, 6);
                          this.ctx.closePath();
                          this.ctx.fill();
-                         break;
                          
-                    case 'doublejump':
-                         // Feather wings
-                         this.ctx.fillStyle = '#FFFFFF';
+                         // Flame trail
+                         this.ctx.fillStyle = '#EF4444';
                          this.ctx.beginPath();
-                         this.ctx.ellipse(-8, -5, 6, 3, -0.3, 0, Math.PI * 2);
-                         this.ctx.fill();
-                         this.ctx.beginPath();
-                         this.ctx.ellipse(8, -5, 6, 3, 0.3, 0, Math.PI * 2);
+                         this.ctx.moveTo(-10, 0);
+                         this.ctx.lineTo(-16, -3);
+                         this.ctx.lineTo(-14, 0);
+                         this.ctx.lineTo(-16, 3);
+                         this.ctx.closePath();
                          this.ctx.fill();
                          
-                         this.ctx.strokeStyle = '#FFD700';
+                         // Speed lines
+                         this.ctx.strokeStyle = '#FBBF24';
                          this.ctx.lineWidth = 2;
                          this.ctx.beginPath();
-                         this.ctx.moveTo(-12, 0);
+                         this.ctx.moveTo(5, 0);
                          this.ctx.lineTo(12, 0);
                          this.ctx.stroke();
                          break;
                          
-                    case 'multiplier':
-                         // Star multiplier
+                    case 'doublecoins':
+                         // Double coins icon - two overlapping coins with 2x
                          this.ctx.fillStyle = '#FFD700';
                          this.ctx.beginPath();
-                         for (let i = 0; i < 5; i++) {
-                              const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
-                              const x = Math.cos(angle) * 10;
-                              const y = Math.sin(angle) * 10;
-                              if (i === 0) this.ctx.moveTo(x, y);
-                              else this.ctx.lineTo(x, y);
-                         }
-                         this.ctx.closePath();
+                         this.ctx.arc(-3, -2, 6, 0, Math.PI * 2);
+                         this.ctx.fill();
+                         this.ctx.beginPath();
+                         this.ctx.arc(3, 2, 6, 0, Math.PI * 2);
                          this.ctx.fill();
                          
-                         this.ctx.fillStyle = '#FF4500';
-                         this.ctx.font = '12px Arial';
+                         this.ctx.strokeStyle = '#B8860B';
+                         this.ctx.lineWidth = 1;
+                         this.ctx.beginPath();
+                         this.ctx.arc(-3, -2, 6, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                         this.ctx.beginPath();
+                         this.ctx.arc(3, 2, 6, 0, Math.PI * 2);
+                         this.ctx.stroke();
+                         
+                         // 2x text
+                         this.ctx.fillStyle = '#FFFFFF';
+                         this.ctx.font = 'bold 8px Arial';
                          this.ctx.textAlign = 'center';
-                         this.ctx.fillText('2x', 0, 4);
-                         break;
-                         
-                    case 'slowmotion':
-                         // Clock/hourglass
-                         this.ctx.strokeStyle = '#4169E1';
-                         this.ctx.lineWidth = 2;
-                         this.ctx.beginPath();
-                         this.ctx.arc(0, 0, 8, 0, Math.PI * 2);
-                         this.ctx.stroke();
-                         
-                         this.ctx.beginPath();
-                         this.ctx.moveTo(-4, -4);
-                         this.ctx.lineTo(4, 4);
-                         this.ctx.moveTo(4, -4);
-                         this.ctx.lineTo(-4, 4);
-                         this.ctx.stroke();
+                         this.ctx.fillText('2x', 0, 1);
                          break;
                }
                
@@ -3017,6 +3237,37 @@ class EndlessRunner {
                this.ctx.stroke();
                this.ctx.setLineDash([]);
                this.ctx.shadowBlur = 0;
+          }
+          
+          // Visual indicators for monster actions
+          if (monster.sliding) {
+               // Sliding dust effect
+               this.ctx.fillStyle = 'rgba(220, 20, 60, 0.5)';
+               for (let i = 0; i < 5; i++) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(
+                         mx - i * 8 - Math.random() * 10,
+                         this.ground - 5 + Math.random() * 5,
+                         2 + Math.random() * 3,
+                         0, Math.PI * 2
+                    );
+                    this.ctx.fill();
+               }
+          }
+          
+          if (monster.jumping) {
+               // Jump trail effect
+               this.ctx.fillStyle = 'rgba(139, 0, 0, 0.3)';
+               for (let i = 0; i < 3; i++) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(
+                         mx + monster.width/2,
+                         my + monster.height/2 + i * 15,
+                         4 - i,
+                         0, Math.PI * 2
+                    );
+                    this.ctx.fill();
+               }
           }
      }
      
