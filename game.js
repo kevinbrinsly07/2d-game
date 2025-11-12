@@ -3026,24 +3026,33 @@ this.fireTraps.forEach(trap => {
                          break;
                          
                     case 'magnet':
-                         // Magnet - horseshoe shape
+                         // Magnet - U shape
                          this.ctx.strokeStyle = '#DC2626';
-                         this.ctx.lineWidth = 6; // Increased from 4
+                         this.ctx.lineWidth = 6;
                          this.ctx.beginPath();
-                         this.ctx.arc(0, 0, 12, 0, Math.PI); // Scaled up from 8
+                         // Draw U shape: straight sides with curved bottom
+                         this.ctx.moveTo(-12, -12); // Start at top-left
+                         this.ctx.lineTo(-12, 6);   // Left side down
+                         this.ctx.quadraticCurveTo(-12, 12, 0, 12); // Bottom curve left to center
+                         this.ctx.quadraticCurveTo(12, 12, 12, 6);  // Bottom curve center to right
+                         this.ctx.lineTo(12, -12);   // Right side up
                          this.ctx.stroke();
                          
-                         // Magnet poles
+                         // Magnet poles at the bottom ends of the U
                          this.ctx.fillStyle = '#DC2626';
-                         this.ctx.fillRect(-15, -3, 6, 12); // Scaled up from -10, -2, 4, 8
-                         this.ctx.fillRect(9, -3, 6, 12); // Scaled up from 6, -2, 4, 8
+                         this.ctx.beginPath();
+                         this.ctx.arc(-12, 6, 3, 0, Math.PI * 2); // Left pole (north)
+                         this.ctx.fill();
+                         this.ctx.beginPath();
+                         this.ctx.arc(12, 6, 3, 0, Math.PI * 2);  // Right pole (south)
+                         this.ctx.fill();
                          
-                         // Plus/minus symbols
+                         // Plus/minus symbols on poles
                          this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.font = 'bold 12px Arial'; // Increased from 8px
+                         this.ctx.font = 'bold 10px Arial';
                          this.ctx.textAlign = 'center';
-                         this.ctx.fillText('+', -12, 5); // Adjusted from -8, 4
-                         this.ctx.fillText('-', 12, 5); // Adjusted from 8, 4
+                         this.ctx.fillText('+', -12, 10); // North pole
+                         this.ctx.fillText('-', 12, 10);  // South pole
                          break;
                          
                     case 'boost':
