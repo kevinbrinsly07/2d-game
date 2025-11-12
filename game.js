@@ -1279,7 +1279,7 @@ updateAudioButtons() {
           let distanceReduction = 50; // Reduce distance by 50 pixels per hit (increased from 40)
           
           let chaseDistance = Math.max(40, baseDistance - (hitCount * distanceReduction)); // Minimum distance increased from 20 to 40
-          let isDeadly = hitCount >= 2;
+          let isDeadly = hitCount >= 3;
           
           // Calculate ideal position (behind the player)
           let idealX = this.player.x - chaseDistance;
@@ -1332,13 +1332,13 @@ updateAudioButtons() {
           this.monster.frame += 0.3;
           if (this.monster.frame >= 4) this.monster.frame = 0;
           
-          // Monster can only catch player after 2 obstacle hits in recent time
-          let deadlyHitThreshold = 2;
+          // Monster can only catch player after 3 obstacle hits in recent time
+          let deadlyHitThreshold = 3;
           
           let verticalDistance = Math.abs(this.monster.y - this.player.y);
           if (distanceToPlayer < this.monster.catchDistance && verticalDistance < 30) {
                // Only catch if player has hit enough obstacles recently (within 10 seconds)
-               if (this.hitTimestamps && this.hitTimestamps.length >= deadlyHitThreshold) { // Reduced from 3 to 2
+               if (this.hitTimestamps && this.hitTimestamps.length >= deadlyHitThreshold) {
                     this.gameOver();
                }
                // If less than threshold hits, monster just follows but cannot catch
@@ -1619,22 +1619,22 @@ updateAudioButtons() {
           switch(type) {
                case 'shield':
                     this.invulnerable = true;
-                    this.invulnerableTimer = 180; // 3 seconds
+                    this.invulnerableTimer = 420; // 7 seconds
                     this.shieldHits = 1; // Can take one hit
                     break;
                case 'magnet':
                     this.magnetCoins = true;
-                    this.magnetTimer = 360; // 6 seconds - pulls in nearby coins
+                    this.magnetTimer = 420; // 7 seconds - pulls in nearby coins
                     break;
                case 'boost':
                     this.speedBoost = true;
-                    this.speedBoostTimer = 180; // 3 seconds - rockets forward, auto-dodges obstacles
+                    this.speedBoostTimer = 420; // 7 seconds - rockets forward, auto-dodges obstacles
                     this.gameSpeed = this.baseGameSpeed * 1.8; // Much faster
                     this.autoDodge = true; // Auto-dodge obstacles during boost
                     break;
                case 'doublecoins':
                     this.scoreMultiplier = true;
-                    this.scoreMultiplierTimer = 300; // 5 seconds - double coins/score
+                    this.scoreMultiplierTimer = 420; // 7 seconds - double coins/score
                     break;
           }
      }
@@ -1680,8 +1680,8 @@ updateAudioButtons() {
           this.gameSpeed = this.baseGameSpeed * 0.6; // Reduced slowdown from 0.5 to 0.6 (less slowdown)
           this.slowdownTimer = 120; // Reduced from 180 to 120 frames (2 seconds instead of 3)
           
-          // After 2 hits, start catching animation
-          if (this.hitTimestamps.length >= 2) {
+          // After 3 hits, start catching animation
+          if (this.hitTimestamps.length >= 3) {
                this.startCatchingAnimation();
                return;
           }
@@ -2290,6 +2290,58 @@ updateAudioButtons() {
                     this.ctx.lineTo(px - 40 - i * 10, adjustedY + this.player.height/2 - 10 + i * 5);
                     this.ctx.stroke();
                }
+          }
+          
+          // Draw power-up timer displays
+          let timerY = adjustedY - 40;
+          const timerSpacing = 25;
+          
+          if (this.invulnerable && this.invulnerableTimer > 0) {
+               const remainingSeconds = Math.ceil(this.invulnerableTimer / 60);
+               this.ctx.fillStyle = '#FFFFFF';
+               this.ctx.strokeStyle = '#3B82F6';
+               this.ctx.lineWidth = 2;
+               this.ctx.font = 'bold 14px Arial';
+               this.ctx.textAlign = 'center';
+               this.ctx.strokeText(`Shield: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               this.ctx.fillText(`Shield: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               timerY -= timerSpacing;
+          }
+          
+          if (this.magnetCoins && this.magnetTimer > 0) {
+               const remainingSeconds = Math.ceil(this.magnetTimer / 60);
+               this.ctx.fillStyle = '#FFFFFF';
+               this.ctx.strokeStyle = '#DC2626';
+               this.ctx.lineWidth = 2;
+               this.ctx.font = 'bold 14px Arial';
+               this.ctx.textAlign = 'center';
+               this.ctx.strokeText(`Magnet: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               this.ctx.fillText(`Magnet: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               timerY -= timerSpacing;
+          }
+          
+          if (this.speedBoost && this.speedBoostTimer > 0) {
+               const remainingSeconds = Math.ceil(this.speedBoostTimer / 60);
+               this.ctx.fillStyle = '#FFFFFF';
+               this.ctx.strokeStyle = '#F59E0B';
+               this.ctx.lineWidth = 2;
+               this.ctx.font = 'bold 14px Arial';
+               this.ctx.textAlign = 'center';
+               this.ctx.strokeText(`Boost: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               this.ctx.fillText(`Boost: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               timerY -= timerSpacing;
+          }
+          
+          if (this.scoreMultiplier && this.scoreMultiplierTimer > 0) {
+               const remainingSeconds = Math.ceil(this.scoreMultiplierTimer / 60);
+               this.ctx.fillStyle = '#FFFFFF';
+               this.ctx.strokeStyle = '#FFD700';
+               this.ctx.lineWidth = 2;
+               this.ctx.font = 'bold 14px Arial';
+               this.ctx.textAlign = 'center';
+               this.ctx.strokeText(`2x Coins: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               this.ctx.fillText(`2x Coins: ${remainingSeconds}s`, px + this.player.width/2, timerY);
+               timerY -= timerSpacing;
           }
      }
      
@@ -3193,7 +3245,7 @@ this.fireTraps.forEach(trap => {
           if (!this.monster) return;
           
           let monster = this.monster;
-          let isDeadly = this.hitTimestamps && this.hitTimestamps.length >= 2;
+          let isDeadly = this.hitTimestamps && this.hitTimestamps.length >= 3;
           const mx = monster.x;
           const my = monster.y;
           const bounce = Math.sin(monster.frame * 1.5) * 6;
