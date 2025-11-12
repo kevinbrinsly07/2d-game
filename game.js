@@ -14,7 +14,7 @@ class EndlessRunner {
           this.musicEnabled = localStorage.getItem('musicEnabled') !== 'false'; // Default to true
           this.initAudio();
           
-          this.gameState = 'start'; // start, playing, gameOver
+          this.gameState = 'start'; // start, playing, catching, gameOver
           this.score = 0;
           this.distance = 0; // Add distance tracking
           this.highScore = localStorage.getItem('highScore') || 0;
@@ -26,6 +26,8 @@ class EndlessRunner {
           this.hitFlash = 0;
           this.lastHitTime = 0; // Track when the last obstacle was hit
           this.consecutiveDangers = 0; // Track consecutive dangerous obstacles spawned
+          this.catchingAnimation = 0; // Animation timer for monster catching player
+          this.catchingPhase = 0; // Phase of catching animation
           
           this.ground = this.canvas.height - 100;
           
@@ -681,24 +683,59 @@ updateAudioButtons() {
      spawnCoins() {
           // Creates collectible coin groups that give points when collected
           // Coins appear in horizontal, vertical, or curved patterns
-          const coinCount = Math.floor(Math.random() * 5) + 3; // 3-7 coins
+          // More likely to spawn 1-2 coins, less likely to spawn large groups
+          const coinGroupType = Math.random();
+          let coinCount;
+          
+          if (coinGroupType < 0.50) {
+               // 50% chance: Single coin
+               coinCount = 1;
+          } else if (coinGroupType < 0.80) {
+               // 30% chance: Two coins
+               coinCount = 2;
+          } else if (coinGroupType < 0.92) {
+               // 12% chance: Small group (3-4 coins)
+               coinCount = Math.floor(Math.random() * 2) + 3; // 3-4 coins
+          } else {
+               // 8% chance: Large group (5-7 coins)
+               coinCount = Math.floor(Math.random() * 3) + 5; // 5-7 coins
+          }
+          
           const pattern = Math.random();
           
           for (let i = 0; i < coinCount; i++) {
                let coinX, coinY;
                
-               if (pattern < 0.33) {
-                    // Horizontal line
-                    coinX = this.canvas.width + i * 25;
-                    coinY = this.ground - 60 - Math.random() * 40;
-               } else if (pattern < 0.66) {
-                    // Vertical line
+               if (coinCount === 1) {
+                    // Single coin - simple placement
                     coinX = this.canvas.width + 20;
-                    coinY = this.ground - 40 - i * 20;
+                    coinY = this.ground - 60 - Math.random() * 40;
+               } else if (coinCount === 2) {
+                    // Two coins - simple horizontal or vertical spacing
+                    if (pattern < 0.5) {
+                         // Horizontal
+                         coinX = this.canvas.width + 20 + i * 30;
+                         coinY = this.ground - 60 - Math.random() * 20;
+                    } else {
+                         // Vertical
+                         coinX = this.canvas.width + 20;
+                         coinY = this.ground - 50 - i * 25;
+                    }
                } else {
-                    // Curved pattern
-                    coinX = this.canvas.width + i * 20;
-                    coinY = this.ground - 60 - Math.sin(i * 0.5) * 30;
+                    // Larger groups - use patterns
+                    if (pattern < 0.33) {
+                         // Horizontal line
+                         coinX = this.canvas.width + i * 25;
+                         coinY = this.ground - 60 - Math.random() * 40;
+                    } else if (pattern < 0.66) {
+                         // Vertical line
+                         coinX = this.canvas.width + 20;
+                         coinY = this.ground - 40 - i * 20;
+                    } else {
+                         // Curved pattern
+                         coinX = this.canvas.width + i * 20;
+                         coinY = this.ground - 60 - Math.sin(i * 0.5) * 30;
+                    }
                }
                
                this.coins.push({
@@ -721,8 +758,8 @@ updateAudioButtons() {
           this.powerUps.push({
                x: this.canvas.width,
                y: this.ground - 70 - Math.random() * 30,
-               width: 24,
-               height: 24,
+               width: 36, // Increased from 24 to 36 (50% bigger)
+               height: 36, // Increased from 24 to 36 (50% bigger)
                type: type,
                frame: 0,
                collected: false
@@ -1242,7 +1279,7 @@ updateAudioButtons() {
           let distanceReduction = 50; // Reduce distance by 50 pixels per hit (increased from 40)
           
           let chaseDistance = Math.max(40, baseDistance - (hitCount * distanceReduction)); // Minimum distance increased from 20 to 40
-          let isDeadly = hitCount >= 3;
+          let isDeadly = hitCount >= 2;
           
           // Calculate ideal position (behind the player)
           let idealX = this.player.x - chaseDistance;
@@ -1643,8 +1680,11 @@ updateAudioButtons() {
           this.gameSpeed = this.baseGameSpeed * 0.6; // Reduced slowdown from 0.5 to 0.6 (less slowdown)
           this.slowdownTimer = 120; // Reduced from 180 to 120 frames (2 seconds instead of 3)
           
-          // After 3 hits, monster becomes deadly (can catch player)
-          // No immediate game over - let the monster catch the player instead
+          // After 2 hits, start catching animation
+          if (this.hitTimestamps.length >= 2) {
+               this.startCatchingAnimation();
+               return;
+          }
           
           // Visual feedback
           this.showHitEffect();
@@ -1681,6 +1721,52 @@ updateAudioButtons() {
           this.hitTimestamps = this.hitTimestamps.filter(time => 
                currentTime - time < 10000
           );
+     }
+     
+     startCatchingAnimation() {
+          this.gameState = 'catching';
+          this.catchingAnimation = 0;
+          this.catchingPhase = 0;
+          this.gameSpeed = 0; // Stop the game
+          this.playHitSound();
+     }
+     
+     updateCatchingAnimation() {
+          this.catchingAnimation++;
+          
+          // Phase 0: Monster rushes toward player (0-30 frames)
+          if (this.catchingPhase === 0) {
+               if (this.monster) {
+                    // Monster quickly moves to player
+                    let dx = this.player.x - this.monster.x;
+                    this.monster.x += dx * 0.15; // Fast approach
+                    
+                    // Also match vertical position
+                    let dy = this.player.y - this.monster.y;
+                    this.monster.y += dy * 0.15;
+               }
+               
+               if (this.catchingAnimation > 30) {
+                    this.catchingPhase = 1;
+                    this.catchingAnimation = 0;
+               }
+          }
+          // Phase 1: Monster grabs player (30-60 frames)
+          else if (this.catchingPhase === 1) {
+               // Player struggles - shake animation
+               this.player.x += Math.sin(this.catchingAnimation * 0.5) * 3;
+               
+               if (this.catchingAnimation > 30) {
+                    this.catchingPhase = 2;
+                    this.catchingAnimation = 0;
+               }
+          }
+          // Phase 2: Fade to black and show game over (60-90 frames)
+          else if (this.catchingPhase === 2) {
+               if (this.catchingAnimation > 30) {
+                    this.gameOver();
+               }
+          }
      }
      
      gameOver() {
@@ -2915,77 +3001,77 @@ this.fireTraps.forEach(trap => {
                          // Shield icon - protective barrier
                          this.ctx.fillStyle = '#3B82F6';
                          this.ctx.beginPath();
-                         this.ctx.moveTo(0, -10);
-                         this.ctx.lineTo(-8, -6);
-                         this.ctx.lineTo(-8, 4);
-                         this.ctx.lineTo(0, 10);
-                         this.ctx.lineTo(8, 4);
-                         this.ctx.lineTo(8, -6);
+                         this.ctx.moveTo(0, -15); // Scaled up from -10
+                         this.ctx.lineTo(-12, -9); // Scaled up from -8, -6
+                         this.ctx.lineTo(-12, 6); // Scaled up from -8, 4
+                         this.ctx.lineTo(0, 15); // Scaled up from 0, 10
+                         this.ctx.lineTo(12, 6); // Scaled up from 8, 4
+                         this.ctx.lineTo(12, -9); // Scaled up from 8, -6
                          this.ctx.closePath();
                          this.ctx.fill();
                          
                          this.ctx.strokeStyle = '#60A5FA';
-                         this.ctx.lineWidth = 2;
+                         this.ctx.lineWidth = 3; // Increased from 2
                          this.ctx.stroke();
                          
                          // Shield cross
                          this.ctx.strokeStyle = '#FFFFFF';
-                         this.ctx.lineWidth = 1.5;
+                         this.ctx.lineWidth = 2; // Increased from 1.5
                          this.ctx.beginPath();
-                         this.ctx.moveTo(-5, 0);
-                         this.ctx.lineTo(5, 0);
-                         this.ctx.moveTo(0, -5);
-                         this.ctx.lineTo(0, 5);
+                         this.ctx.moveTo(-7, 0); // Scaled up from -5
+                         this.ctx.lineTo(7, 0); // Scaled up from 5
+                         this.ctx.moveTo(0, -7); // Scaled up from -5
+                         this.ctx.lineTo(0, 7); // Scaled up from 5
                          this.ctx.stroke();
                          break;
                          
                     case 'magnet':
                          // Magnet - horseshoe shape
                          this.ctx.strokeStyle = '#DC2626';
-                         this.ctx.lineWidth = 4;
+                         this.ctx.lineWidth = 6; // Increased from 4
                          this.ctx.beginPath();
-                         this.ctx.arc(0, 0, 8, 0, Math.PI);
+                         this.ctx.arc(0, 0, 12, 0, Math.PI); // Scaled up from 8
                          this.ctx.stroke();
                          
                          // Magnet poles
                          this.ctx.fillStyle = '#DC2626';
-                         this.ctx.fillRect(-10, -2, 4, 8);
-                         this.ctx.fillRect(6, -2, 4, 8);
+                         this.ctx.fillRect(-15, -3, 6, 12); // Scaled up from -10, -2, 4, 8
+                         this.ctx.fillRect(9, -3, 6, 12); // Scaled up from 6, -2, 4, 8
                          
                          // Plus/minus symbols
                          this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.font = 'bold 8px Arial';
+                         this.ctx.font = 'bold 12px Arial'; // Increased from 8px
                          this.ctx.textAlign = 'center';
-                         this.ctx.fillText('+', -8, 4);
-                         this.ctx.fillText('-', 8, 4);
+                         this.ctx.fillText('+', -12, 5); // Adjusted from -8, 4
+                         this.ctx.fillText('-', 12, 5); // Adjusted from 8, 4
                          break;
                          
                     case 'boost':
                          // Rocket boost - speed lines and flame
                          this.ctx.fillStyle = '#F59E0B';
                          this.ctx.beginPath();
-                         this.ctx.moveTo(-10, 0);
-                         this.ctx.lineTo(10, -6);
-                         this.ctx.lineTo(10, 6);
+                         this.ctx.moveTo(-15, 0); // Scaled up from -10
+                         this.ctx.lineTo(15, -9); // Scaled up from 10, -6
+                         this.ctx.lineTo(15, 9); // Scaled up from 10, 6
                          this.ctx.closePath();
                          this.ctx.fill();
                          
                          // Flame trail
                          this.ctx.fillStyle = '#EF4444';
                          this.ctx.beginPath();
-                         this.ctx.moveTo(-10, 0);
-                         this.ctx.lineTo(-16, -3);
-                         this.ctx.lineTo(-14, 0);
-                         this.ctx.lineTo(-16, 3);
+                         this.ctx.moveTo(-15, 0); // Scaled up from -10
+                         this.ctx.lineTo(-24, -4); // Scaled up from -16, -3
+                         this.ctx.lineTo(-21, 0); // Scaled up from -14
+                         this.ctx.lineTo(-24, 4); // Scaled up from -16, 3
                          this.ctx.closePath();
                          this.ctx.fill();
                          
                          // Speed lines
                          this.ctx.strokeStyle = '#FBBF24';
-                         this.ctx.lineWidth = 2;
+                         this.ctx.lineWidth = 3; // Increased from 2
                          this.ctx.beginPath();
-                         this.ctx.moveTo(5, 0);
-                         this.ctx.lineTo(12, 0);
+                         this.ctx.moveTo(8, 0); // Scaled up from 5
+                         this.ctx.lineTo(18, 0); // Scaled up from 12
                          this.ctx.stroke();
                          break;
                          
@@ -2993,26 +3079,26 @@ this.fireTraps.forEach(trap => {
                          // Double coins icon - two overlapping coins with 2x
                          this.ctx.fillStyle = '#FFD700';
                          this.ctx.beginPath();
-                         this.ctx.arc(-3, -2, 6, 0, Math.PI * 2);
+                         this.ctx.arc(-4, -3, 9, 0, Math.PI * 2); // Scaled up from -3, -2, 6
                          this.ctx.fill();
                          this.ctx.beginPath();
-                         this.ctx.arc(3, 2, 6, 0, Math.PI * 2);
+                         this.ctx.arc(4, 3, 9, 0, Math.PI * 2); // Scaled up from 3, 2, 6
                          this.ctx.fill();
                          
                          this.ctx.strokeStyle = '#B8860B';
-                         this.ctx.lineWidth = 1;
+                         this.ctx.lineWidth = 1.5; // Increased from 1
                          this.ctx.beginPath();
-                         this.ctx.arc(-3, -2, 6, 0, Math.PI * 2);
+                         this.ctx.arc(-4, -3, 9, 0, Math.PI * 2); // Scaled up
                          this.ctx.stroke();
                          this.ctx.beginPath();
-                         this.ctx.arc(3, 2, 6, 0, Math.PI * 2);
+                         this.ctx.arc(4, 3, 9, 0, Math.PI * 2); // Scaled up
                          this.ctx.stroke();
                          
                          // 2x text
                          this.ctx.fillStyle = '#FFFFFF';
-                         this.ctx.font = 'bold 8px Arial';
+                         this.ctx.font = 'bold 12px Arial'; // Increased from 8px
                          this.ctx.textAlign = 'center';
-                         this.ctx.fillText('2x', 0, 1);
+                         this.ctx.fillText('2x', 0, 2); // Adjusted from 0, 1
                          break;
                }
                
@@ -3098,7 +3184,7 @@ this.fireTraps.forEach(trap => {
           if (!this.monster) return;
           
           let monster = this.monster;
-          let isDeadly = this.hitTimestamps && this.hitTimestamps.length >= 3;
+          let isDeadly = this.hitTimestamps && this.hitTimestamps.length >= 2;
           const mx = monster.x;
           const my = monster.y;
           const bounce = Math.sin(monster.frame * 1.5) * 6;
@@ -3719,6 +3805,11 @@ this.fireTraps.forEach(trap => {
      }
      
      update() {
+          if (this.gameState === 'catching') {
+               this.updateCatchingAnimation();
+               return;
+          }
+          
           if (this.gameState !== 'playing') return;
           
           this.updatePlayer();
@@ -3973,6 +4064,39 @@ this.fireTraps.forEach(trap => {
           this.drawObstacles();
           this.drawMonster();
           this.drawPlayer();
+          
+          // Draw catching animation effects
+          if (this.gameState === 'catching') {
+               this.drawCatchingEffects();
+          }
+     }
+     
+     drawCatchingEffects() {
+          // Phase 1: Screen shake and red tint
+          if (this.catchingPhase === 1) {
+               this.ctx.fillStyle = `rgba(255, 0, 0, ${0.3 + Math.sin(this.catchingAnimation * 0.3) * 0.2})`;
+               this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+               
+               // Draw "CAUGHT!" text
+               this.ctx.save();
+               this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+               this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
+               this.ctx.lineWidth = 4;
+               this.ctx.font = 'bold 80px Arial';
+               this.ctx.textAlign = 'center';
+               this.ctx.textBaseline = 'middle';
+               const shake = Math.sin(this.catchingAnimation * 0.5) * 5;
+               this.ctx.strokeText('CAUGHT!', this.canvas.width / 2 + shake, this.canvas.height / 2);
+               this.ctx.fillText('CAUGHT!', this.canvas.width / 2 + shake, this.canvas.height / 2);
+               this.ctx.restore();
+          }
+          
+          // Phase 2: Fade to black
+          if (this.catchingPhase === 2) {
+               const fadeAmount = this.catchingAnimation / 30;
+               this.ctx.fillStyle = `rgba(0, 0, 0, ${fadeAmount})`;
+               this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+          }
      }
      
      gameLoop() {
