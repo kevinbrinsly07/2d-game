@@ -122,19 +122,33 @@ The game features 4 different power-up types:
    - Dark pit with roots and debris
    - Helper platforms spawn automatically
 
-4. **Rope Crossings** - 3% spawn rate
+5. **Rope Crossings** - 3% spawn rate
    - Wide gap (200-300 pixels) with rope
    - Hold SPACE to grab and cross
    - Rope swings slightly
    - Letting go causes fall
 
-5. **Fire Traps** - 4% spawn rate
+6. **Fire Traps** - 4% spawn rate
    - Ground-based flame obstacles
    - Always visible and glowing
    - Animated flickering flames
    - Size: 60x30 pixels
 
-6. **Coins/Power-ups** - 18% spawn rate
+7. **Pendulum Axes** - Dynamic spawn rate
+   - Swinging axe traps on chains
+   - Swing back and forth in arc pattern
+   - Chain length: 80-120 pixels
+   - Axe size: 25x35 pixels
+   - Swing speed varies
+
+8. **Spike Bushes** - Dynamic spawn rate
+   - Forest bushes with thorns
+   - Ground-based obstacles
+   - Spawn in clusters of 3-6
+   - Natural organic appearance
+   - Size: 22x30 pixels each
+
+9. **Coins/Power-ups** - 18% spawn rate
 
 #### Late Game (Score ≥ 50)
 1. **Ground Rocks** - 50% (increased)
@@ -142,7 +156,9 @@ The game features 4 different power-up types:
 3. **Gaps/Pits** - 12%
 4. **Rope Crossings** - 3%
 5. **Fire Traps** - 4%
-6. **Coins/Power-ups** - 13%
+6. **Pendulum Axes** - Dynamic spawns
+7. **Spike Bushes** - Dynamic spawns
+8. **Coins/Power-ups** - 13%
 
 ### Pendulum Axes
 - Swinging axe traps on chains
@@ -441,7 +457,7 @@ When active:
 - Average spawn interval: 40-80 frames (0.67-1.33 seconds)
 
 ### Total Power-Ups
-- 4 different types available
+- 4 different types available: Shield, Coin Magnet, Speed Boost, Double Coins
 - 15% chance when coin/power-up spawn triggered
 - **No maximum limit** - infinite power-ups available
 - Power-up types randomly selected each spawn
@@ -454,6 +470,7 @@ Multiple obstacle types spawn continuously:
 - Fire Traps: Rare
 - Rope Crossings: Very rare
 - Pendulums: Dynamic spawns
+- Spikes: Cluster obstacles
 - **No maximum limit** - endless obstacles
 
 ### Spawn Timers
@@ -468,36 +485,42 @@ Multiple obstacle types spawn continuously:
 ## 🎨 Visual Effects
 
 ### Particle Effects
-1. **Coin Collection**: 
+1. **Coin Collection**:
    - 6 gold particles
    - Spread in all directions
    - Life: 30 frames
 
-2. **Power-Up Collection**: 
+2. **Power-Up Collection**:
    - 8 colored particles (red/cyan/blue)
    - Larger spread
    - Life: 40 frames
 
-3. **Sliding Dust**: 
+3. **Sliding Dust**:
    - Purple dust trail
    - 5 particles behind player
    - Fades over time
 
 ### Screen Effects
-1. **Hit Flash**: 
+1. **Hit Flash**:
    - Red screen overlay
    - Fades over 40 frames
    - Alpha: 66% → 0%
 
-2. **Shield Glow**: 
+2. **Shield Glow**:
    - Blue ellipse around player
    - Pulsing animation
    - Dashed line pattern
 
-3. **Speed Boost Aura**: 
+3. **Speed Boost Aura**:
    - Red/orange flame trail
    - 5 flame particles behind player
    - Speed lines effect
+
+4. **Catching Animation**:
+   - Three-phase monster catch sequence
+   - Screen shake and red tint
+   - "CAUGHT!" text display
+   - Fade to black transition
 
 ---
 
@@ -612,6 +635,8 @@ Multiple obstacle types spawn continuously:
 - Rocks: #696969 (Dim Gray) with #808080 highlights
 - Birds: #4169E1 (Royal Blue), #000080 (Navy)
 - Fire: #FF6400 → #FF8C00 → #FFA500 (Orange gradient)
+- Spikes: #228B22 (Green bushes), #32CD32 (Light green leaves)
+- Ropes: #8B4513 (Brown rope), #654321 (Darker rope strands)
 
 ### Monster Colors
 - Normal: #7F2020 (Dark Red)
@@ -636,6 +661,81 @@ Multiple obstacle types spawn continuously:
 
 ---
 
+## 🎯 Special Mechanics
+
+### Rope Crossing
+1. Player approaches rope obstacle
+2. "HOLD SPACE" indicator appears
+3. Hold SPACE to grab rope
+4. Player swings across gap
+5. Rope pulls player forward
+6. Release SPACE or reach end to drop
+
+### Auto-Dodge (Speed Boost)
+When Speed Boost is active:
+- Automatically jumps over ground obstacles within 100 pixels
+- Automatically slides under birds within 100 pixels
+- No manual input needed during boost
+
+### Coin Magnet Effect
+When active:
+- Attracts coins within 100-pixel radius
+- Coins smoothly move toward player
+- Attraction strength: 3 pixels per frame
+- Visual: Coins curve toward player
+
+### Hit Reset Mechanic
+- All hits reset if 10 seconds pass without hitting an obstacle
+- Monster returns to non-deadly state
+- Chase distance resets to 250 pixels
+
+---
+
+## 🎮 Platform System
+
+### Moving Platforms
+- **Purpose**: Help cross dangerous gaps
+- **Appearance**: Brown log with moss
+- **Size**: 80-130 pixels wide, 15 pixels tall
+- **Movement**: Vertical up/down motion
+- **Bounce Range**: 35-60 pixels
+- **Speed**: 1.5-4 pixels per frame
+
+### Strategic Platform Spawning
+- **Trigger**: Automatically spawns when gaps detected
+- **Quantity**:
+  - 1 platform for single gap
+  - 2 platforms for double gap
+  - 3 platforms for triple gap
+  - 4 platforms for quad gap
+- **Visual Indicator**:
+  - Brighter green moss
+  - "!" help icon above platform
+  - Blue glow pulse effect
+  - Dotted line showing gap below
+
+---
+
+## 📊 Game Statistics Display
+
+### Top-Left UI Panel
+Shows real-time information:
+- **Coin**: Current score (coins collected)
+- **Distance**: Meters traveled
+- **Level**: Current difficulty level (always shows "1")
+- **High Coin**: All-time high score
+- **Obstacle Hits**: Current hits out of 2 (X/2)
+- **Status Indicators**:
+  - SLOWED DOWN! (red, when hit recently)
+  - DOUBLE JUMP READY! (blue, when in air)
+  - SLIDING! (purple, when crouching)
+  - SHIELD ACTIVE! (blue, when invulnerable)
+  - COIN MAGNET! (yellow, when magnet active)
+  - SPEED BOOST! (orange, when boosting)
+  - SCORE 2X! (pink, when double coins active)
+
+---
+
 ## 🔄 Version Information
 
 - **Game Type**: Endless Runner
@@ -645,5 +745,5 @@ Multiple obstacle types spawn continuously:
 
 ---
 
-*Documentation Generated: 2025*  
+*Documentation Generated: 14 November 2025*  
 *Game Development: HTML5 Canvas + JavaScript*
